@@ -4,20 +4,60 @@ How to take `scope.md` from paper to a tray app that turns GitHub polling into g
 
 ## Status
 
+Updated after the unattended run of 2026-10-27/28 (branch `overnight/skeleton`, not pushed). Everything below was built and tested against fakes only; nothing called real GitHub.
+
 | Step | State |
 |---|---|
-| D decisions | Proposed below, not yet agreed |
-| S1 GitHub change detection | Not started |
-| S2 Event delivery over the pipe | Not started |
-| S3 Floating stream widget | Not started |
-| S4 Postern from Pylon | Not started |
-| S5 Push paper check | Not started |
-| Phase 1 walking skeleton | Not started |
-| Phase 2 stream widget + test bench (sender) | Not started |
-| Phase 3 GitHub monitors | Not started |
-| Phase 4 test bench (fake GitHub) | Not started |
-| Phase 5 consumers | Not started |
+| D decisions | ✅ All seven taken as recommended (D4: project reference through `PosternRoot`) |
+| S1 GitHub change detection | ⏳ **Needs you.** The starting hypothesis is built and swappable; the assumptions it rests on are listed under "S1 assumptions" below |
+| S2 Event delivery over the pipe | ✅ Folded into Phase 1 and proved by integration tests (live, replay, pruned gap, unknown sequence, slow subscriber, stop ends streams). Node subscriber not tried |
+| S3 Floating stream widget | ✅ Folded into Phase 2. Proved offscreen (snapshots) and live (Pylon.exe stayed responsive through 3,000 events at ~1,000/s with the widget open). **Needs you** for feel: focus, drag, resize, snap, DPI across monitors |
+| S4 Postern from Pylon | ✅ Scopes derived per owner, registration, re-registration only when not covered, waiting/denied/not-running states, "Ask Postern again". Proved end to end by `tools/Pylon.E2E` against Postern (Dev) |
+| S5 Push paper check | ⏳ Not done. The webhook normaliser and its templates were written from the payload shapes GitHub documents, without the relay comparison |
+| Phase 1 walking skeleton | ✅ Core, Sources.GitHub, Broker, Client, Cli; 81 tests |
+| Phase 2 stream widget + test bench (sender) | ✅ |
+| Phase 3 GitHub monitors | ✅ First pass, on the S1 hypothesis |
+| Phase 4 test bench (fake GitHub) | ✅ Including the "done when", automated: `tools/Pylon.E2E` |
+| Phase 5 consumers | ⏳ `Pylon.Client` (`RunAsync` follows the consumer contract) only. No subscriber approval yet, so any process running as you can subscribe. Perch untouched |
 | Phase 6 release | Not started |
+
+## Overnight run: what to look at first
+
+1. **Run it.** `.\run.cmd` starts Pylon (Dev); `.\run.cmd bench` starts the test bench. Add a heartbeat monitor to see the stream move, or follow the bench's "Postern setup for polling…" to poll the fake through your Postern (Dev).
+2. **Renders** of every window are in `captures/` (offscreen, made-up data; regenerate with `dotnet run --project tools\Pylon.Snapshots`).
+3. **The end to end:** `dotnet run --project tools\Pylon.E2E` (about two minutes). It runs Postern (Dev) headless on its own pipe and data folder, auto-approves only `pylon`, stores one throwaway credential for the fake and deletes it again.
+
+### Decisions made without you (easy to change)
+
+- Monitors call their list `targets`, not `repos`, so other sources can reuse the shape. GitHub reads them as `owner/repo`.
+- A resync Pylon raises itself (a pruned replay gap, a slow subscriber) has source `pylon` and goes to every subscriber.
+- Without `since`, a subscription is live only. The contract already says to refresh fully on connect, and `PylonClient.RunAsync` does that first.
+- `ignoreBots` (on by default) silences PRs opened by bots and reviews by bots. `includeDrafts` (off by default) keeps drafts quiet until they're marked ready.
+- A PR first seen open after the baseline is `opened` only if it was created after the baseline; an old PR that drifts into the 50-PR window isn't news.
+- Checks report `pending` only for a new head commit. On the same commit only a passing/failing result that differs from the last one reported counts, so re-runs that end the same way are quiet.
+- Payloads are cut at 512 KB each and kept 7 days or 200 MB, whichever comes first; events 30 days or 100,000.
+- Dev ingest (`/_pylon/dev/*`) is always on in Debug builds and off in Release unless `--dev-ingest` is passed.
+
+### S1 assumptions (confirm with real repos, with you there)
+
+| # | Assumption | What breaks if it's wrong |
+|---|---|---|
+| A1 | Submitting a review bumps the PR's `updated_at` | Reviews and approvals are only refetched when `updated_at` moves, so they'd be missed until something else touched the PR |
+| A2 | A check run finishing does *not* bump `updated_at` | Harmless if wrong (checks are polled every time anyway), but then the checks calls could be gated too, which saves requests |
+| A3 | Requesting a review bumps `updated_at` and shows in the list's `requested_reviewers`/`requested_teams` | Review requests would be missed |
+| A4 | The pulls list's ETag changes whenever any PR in the top 50 changes | Changes would hide behind 304s |
+| A5 | 304s through Postern don't count against the rate limit | Polling cost is higher than planned |
+| A6 | Fine-grained PAT needs only Pull requests, Checks, Commit statuses and Metadata (all read) | 403s |
+| A7 | Polling every 60s with one list + (open PRs × 2) checks calls per repo stays well inside the budget for ~20 repos | Secondary rate limits; the scheduler would need a global concurrency cap (it has jitter and backoff, not a cap) |
+
+### Known gaps
+
+- No subscriber approval or caller identity yet (Phase 5). The pipe is limited to your account, as Postern's is.
+- No relay or push mode; webhooks only arrive through dev ingest.
+- The widget's "unread" state is only the tray badge while the widget is closed; records inside the widget aren't marked unread.
+- No global concurrency cap across monitors (A7).
+- Icons are drawn from path data at runtime; there's no `.ico` pipeline like Postern's yet (Phase 6).
+- Headless rendering found a real crash: Avalonia builds a row template with null content while it recycles containers. Fixed, and crashes now go to Pylon's own log.
 
 ## What this adds to the scope
 
@@ -34,13 +74,13 @@ Two tensions with the scope, and how this plan resolves them:
 
 ## D. Decisions to agree before building
 
-- [ ] **D1. Event `type` field.** Add a dotted type to the contract (`github.pr.approved`) next to `kind`, so monitors and subscribers can filter granularly. *Recommendation: yes. Update `scope.md`.*
-- [ ] **D2. Observation store.** Payloads live in a separate SQLite table, linked by `sequence`, pruned by age and size (for example 7 days or 200 MB), never sent over the pipe to subscribers. *Recommendation: yes.*
-- [ ] **D3. Subscriber transport.** Server-sent events over HTTP over `\\.\pipe\pylon`, with `Last-Event-ID` as the `since=` sequence. Works for .NET and for Node (`socketPath`). *Recommendation: SSE, confirmed by S2.*
-- [ ] **D4. How Pylon references `Postern.Client`.** Project reference through a `PosternRoot` MSBuild property defaulting to `..\postern`, and CI checks out both repos. Move to a package if a third consumer appears. *Recommendation: project reference.*
-- [ ] **D5. Postern scope granularity.** Per owner (`GET github/repos/org/*/pulls/**`) so adding a repo under a known owner doesn't trigger a new Postern approval, while a new owner does. *Recommendation: per owner.*
-- [ ] **D6. Monitor storage.** `monitors.json` in the data directory, written by the UI and editable by hand, like Postern's `providers.json`. *Recommendation: yes.*
-- [ ] **D7. Same shape as Postern.** .NET 10, `TreatWarningsAsErrors`, one per-user Avalonia tray process hosting the broker, code-only views, Debug builds run as **Pylon (Dev)** on `pylon-dev` against `postern-dev`, with their own data. *Recommendation: yes.*
+- [x] **D1. Event `type` field.** Add a dotted type to the contract (`github.pr.approved`) next to `kind`, so monitors and subscribers can filter granularly. *Recommendation: yes. Update `scope.md`.*
+- [x] **D2. Observation store.** Payloads live in a separate SQLite table, linked by `sequence`, pruned by age and size (for example 7 days or 200 MB), never sent over the pipe to subscribers. *Recommendation: yes.*
+- [x] **D3. Subscriber transport.** Server-sent events over HTTP over `\\.\pipe\pylon`, with `Last-Event-ID` as the `since=` sequence. Works for .NET and for Node (`socketPath`). *Recommendation: SSE, confirmed by S2.*
+- [x] **D4. How Pylon references `Postern.Client`.** Project reference through a `PosternRoot` MSBuild property defaulting to `..\postern`, and CI checks out both repos. Move to a package if a third consumer appears. *Recommendation: project reference.*
+- [x] **D5. Postern scope granularity.** Per owner (`GET github/repos/org/*/pulls/**`) so adding a repo under a known owner doesn't trigger a new Postern approval, while a new owner does. *Recommendation: per owner.*
+- [x] **D6. Monitor storage.** `monitors.json` in the data directory, written by the UI and editable by hand, like Postern's `providers.json`. *Recommendation: yes.*
+- [x] **D7. Same shape as Postern.** .NET 10, `TreatWarningsAsErrors`, one per-user Avalonia tray process hosting the broker, code-only views, Debug builds run as **Pylon (Dev)** on `pylon-dev` against `postern-dev`, with their own data. *Recommendation: yes.*
 
 ### Proposed event shapes
 

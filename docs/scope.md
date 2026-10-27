@@ -37,7 +37,9 @@ apps end up polling the same API for the same things, and each one is another pl
 {
   "sequence": 18342,
   "source": "github",
+  "monitorId": "work-prs",
   "topic": "github/pr/org/perch/412",
+  "type": "github.pr.checks",
   "resourceId": "https://github.com/org/perch/pull/412",
   "kind": "changed",
   "hint": { "checks": "failing" },
@@ -46,6 +48,8 @@ apps end up polling the same API for the same things, and each one is another pl
 ```
 
 - `kind` is `changed`, `created`, `removed` or `resync`.
+- `type` says what happened (`github.pr.approved`, `github.pr.checks`), so subscribers can filter on it as well as on the topic. `monitorId` is the monitor that saw it.
+- What Pylon observed to produce an event (the response slice, before and after, or the webhook body) is kept briefly for the stream widget. It's never sent to subscribers.
 - `hint` is optional and small. Anything larger means the consumer should fetch.
 - `resync` tells consumers to refresh fully. Pylon sends it when its sequence has a gap (after a restart, a
   pruned log, or a source outage).

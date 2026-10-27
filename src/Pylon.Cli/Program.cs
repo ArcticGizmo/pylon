@@ -10,6 +10,7 @@ using Pylon.Core.Events;
 //   pylon-cli tail --json                                  one JSON event per line
 //   pylon-cli emit --github-event pull_request --file opened.json      (dev ingest: a webhook body)
 //   pylon-cli emit --file event.json                                   (dev ingest: a raw event)
+//   pylon-cli emit --file event.json --repeat 2000                     (load: the same event, as fast as Pylon takes it)
 //
 // --pipe NAME (or %PYLON_PIPE%) picks the Pylon; a Debug build defaults to pylon-dev, a Release build to pylon.
 
@@ -100,10 +101,20 @@ try
             if (file is null)
                 return Usage();
             var body = await File.ReadAllTextAsync(file, stop.Token);
-            var result = Take("--github-event") is { } githubEvent
-                ? await pylon.IngestGitHubAsync(githubEvent, body, Take("--monitor"), stop.Token)
-                : await pylon.EmitAsync(body, stop.Token);
-            Console.WriteLine(result.ToJsonString());
+            var githubEvent = Take("--github-event");
+            var monitor = Take("--monitor");
+            var repeat = Take("--repeat") is { } r && int.TryParse(r, out var n) && n > 0 ? n : 1;
+            var started = System.Diagnostics.Stopwatch.StartNew();
+            for (var i = 0; i < repeat && !stop.IsCancellationRequested; i++)
+            {
+                var result = githubEvent is not null
+                    ? await pylon.IngestGitHubAsync(githubEvent, body, monitor, stop.Token)
+                    : await pylon.EmitAsync(body, stop.Token);
+                if (repeat == 1)
+                    Console.WriteLine(result.ToJsonString());
+            }
+            if (repeat > 1)
+                Console.WriteLine($"Sent {repeat} in {started.Elapsed.TotalSeconds:0.0}s ({repeat / Math.Max(started.Elapsed.TotalSeconds, 0.001):0} per second).");
             return ExitOk;
         }
 
@@ -132,7 +143,7 @@ static int Usage()
     Console.Error.WriteLine("""
         pylon-cli status
         pylon-cli tail [--topic PATTERN]... [--type PATTERN]... [--since SEQUENCE] [--json]
-        pylon-cli emit --file FILE [--github-event NAME [--monitor ID]]     (dev Pylon only)
+        pylon-cli emit --file FILE [--github-event NAME [--monitor ID]] [--repeat N]     (dev Pylon only)
         Options: --pipe NAME (default: pylon-dev for a Debug build, pylon for Release; or %PYLON_PIPE%)
         """);
     return ExitUsage;
