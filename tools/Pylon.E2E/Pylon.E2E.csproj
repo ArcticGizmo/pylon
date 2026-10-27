@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- pylon-e2e: the poll path end to end with the real executables. Pylon (headless) polls the fake GitHub through a
+       Postern (Dev, headless) on its own pipe and throwaway data folder; nothing calls real GitHub. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Pylon.E2E</RootNamespace>
+    <AssemblyName>pylon-e2e</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pylon.FakeGitHub\Pylon.FakeGitHub.csproj" />
+    <ProjectReference Include="..\..\src\Pylon.Client\Pylon.Client.csproj" />
+  </ItemGroup>
+
+</Project>

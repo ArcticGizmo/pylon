@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The test bench: a window over a stateful fake GitHub (served on a loopback port) and a payload sender into Pylon's
+       dev ingest. Drives both of Pylon's paths without touching real GitHub:
+       poll  - Pylon polls the fake through a Postern connection pointed at it;
+       push  - each change (or a hand-edited payload) goes straight to Pylon as a webhook. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>Pylon.TestBench</RootNamespace>
+    <AssemblyName>pylon-testbench</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="pylon-snapshots" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pylon.FakeGitHub\Pylon.FakeGitHub.csproj" />
+    <ProjectReference Include="..\..\src\Pylon.Client\Pylon.Client.csproj" />
+  </ItemGroup>
+
+</Project>

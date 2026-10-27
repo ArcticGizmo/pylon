@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Pylon.App\Pylon.App.csproj" />
     <ProjectReference Include="..\Pylon.FakeGitHub\Pylon.FakeGitHub.csproj" />
+    <ProjectReference Include="..\Pylon.TestBench\Pylon.TestBench.csproj" />
   </ItemGroup>
 
 </Project>

@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Pylon.FakeGitHub;
 
-/// <summary>One request the fake answered, for the test bench's request log and for tests counting 304s.</summary>
-public sealed record FakeRequest(DateTimeOffset At, string Path, int Status);
+/// <summary>One request the fake answered. <see cref="Authorized"/> shows Postern injected a credential on the way.</summary>
+public sealed record FakeRequest(DateTimeOffset At, string Path, int Status, bool Authorized = false);
 
 /// <summary>Serves <see cref="FakeGitHubState"/> as GitHub's REST API: ETags on every GET, 304s that cost nothing.</summary>
 public static class FakeGitHubApi
@@ -27,7 +27,7 @@ public static class FakeGitHubApi
             headers["x-ratelimit-reset"] = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds().ToString();
             headers["x-ratelimit-resource"] = "core";
             var status = notModified ? (int)HttpStatusCode.NotModified : 200;
-            log?.Invoke(new FakeRequest(DateTimeOffset.Now, context.Request.Path + context.Request.QueryString, status));
+            log?.Invoke(new FakeRequest(DateTimeOffset.Now, context.Request.Path + context.Request.QueryString, status, context.Request.Headers.Authorization.Count > 0));
             return notModified ? Results.StatusCode(304) : Results.Text(body, "application/json");
         }
 

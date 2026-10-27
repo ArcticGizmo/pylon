@@ -187,8 +187,15 @@ public sealed class FakeGitHubState
         Raise(githubEvent, body(pr), $"{pr.Repo}#{pr.Number} {description}");
     }
 
+    // Webhook bodies are shown in the test bench's editor, so "+00:00" rather than "+00:00".
+    static readonly System.Text.Json.JsonSerializerOptions Readable = new()
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     void Raise(string githubEvent, JsonObject body, string description) =>
-        Changed?.Invoke(new FakeWebhook(githubEvent, body.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), description));
+        Changed?.Invoke(new FakeWebhook(githubEvent, body.ToJsonString(Readable), description));
 
     static JsonObject PullRequestEvent(FakePullRequest pr, string action, string sender) => new()
     {

@@ -59,6 +59,13 @@ await session.Dispatch(() =>
     Save(new MainWindow(runtime, new UiSettings(), () => { }, MainWindow.GeneralKey), "general");
     Save(new MonitorEditor(new GitHubSource(), work, [work, personal, beat]), "monitor-editor");
 
+    var log = new Pylon.TestBench.BenchLog();
+    log.Add(Pylon.TestBench.BenchLog.Kind.Fake, "200 GET /repos/example-org/app/pulls?state=all&sort=updated&direction=desc&per_page=50");
+    log.Add(Pylon.TestBench.BenchLog.Kind.Fake, "304 GET /repos/example-org/app/commits/3f2a/check-runs?per_page=100");
+    log.Add(Pylon.TestBench.BenchLog.Kind.Sent, "pull_request_review from the editor → event #42");
+    log.Add(Pylon.TestBench.BenchLog.Kind.Pylon, "#42 changed github.pr.approved github/pr/example-org/app/101 state=approved");
+    Save(new Pylon.TestBench.BenchWindow(github, log, fakeAddress, "pylon-snapshots"), "testbench");
+
     var compact = new UiSettings { StreamMode = StreamMode.Compact, CompactWidth = 420, CompactHeight = 300 };
     Save(new StreamWindow(runtime, compact), "stream-compact");
 
