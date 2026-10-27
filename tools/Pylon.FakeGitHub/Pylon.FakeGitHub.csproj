@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A stateful stand-in for the slice of GitHub's REST API the poll strategy uses, with real ETags, 304s and
+       rate-limit headers, plus the webhook body for every change. The test bench hosts it behind its UI; the tests host
+       it on a loopback port. Nothing here talks to GitHub. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Pylon.FakeGitHub</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pylon.Core/Pylon.Core.csproj" />
+    <Project Path="src/Pylon.Sources.GitHub/Pylon.Sources.GitHub.csproj" />
+    <Project Path="src/Pylon.Broker/Pylon.Broker.csproj" />
+    <Project Path="src/Pylon.Client/Pylon.Client.csproj" />
+    <Project Path="src/Pylon.App/Pylon.App.csproj" />
+    <Project Path="src/Pylon.Cli/Pylon.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Pylon.FakeGitHub/Pylon.FakeGitHub.csproj" />
+    <Project Path="tools/Pylon.TestBench/Pylon.TestBench.csproj" />
+    <Project Path="tools/Pylon.Snapshots/Pylon.Snapshots.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pylon.Tests/Pylon.Tests.csproj" />
+  </Folder>
+</Solution>

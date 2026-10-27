@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The event contract, topic and type matching, and the monitor model. No Windows, UI or HTTP dependencies, so most
+       tests live here and Pylon.Client can mirror the contract without referencing the broker. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Pylon.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pylon.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- What an app references to subscribe to Pylon. Plain net10.0 like Postern.Client, so cross-platform apps can
+       reference it from shared code; it only works on Windows and says so (IsAvailable = false elsewhere). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Pylon.Client</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\PipeProcess.cs" Link="Interop\PipeProcess.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pylon.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pylon.Core\Pylon.Core.csproj" />
+  </ItemGroup>
+
+</Project>

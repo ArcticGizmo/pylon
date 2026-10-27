@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The running service: named-pipe Kestrel host, SSE subscriptions, the SQLite event log and observation store,
+       and the monitor scheduler. A library so the tray app hosts it in-process and tests run it on a throwaway pipe. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Pylon.Broker</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pylon.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pylon.Core\Pylon.Core.csproj" />
+    <ProjectReference Include="..\Pylon.Sources.GitHub\Pylon.Sources.GitHub.csproj" />
+    <ProjectReference Include="$(PosternRoot)src\Postern.Client\Postern.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+  </ItemGroup>
+
+</Project>

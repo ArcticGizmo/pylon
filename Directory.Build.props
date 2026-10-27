@@ -1,0 +1,15 @@
+<Project>
+  <!-- Imported by every project in the repo. A warning fails the build (locally and in CI) instead of piling up. -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <!-- Pylon calls out through Postern, so it builds against a Postern checkout next to this one (D4 in
+       docs/implementation-plan.md). CI checks Postern out and passes -p:PosternRoot=... -->
+  <PropertyGroup>
+    <PosternRoot Condition="'$(PosternRoot)' == ''">$(MSBuildThisFileDirectory)..\postern\</PosternRoot>
+  </PropertyGroup>
+</Project>

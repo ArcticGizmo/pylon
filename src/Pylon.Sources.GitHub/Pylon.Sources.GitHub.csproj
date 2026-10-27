@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The GitHub source: poll strategy, pull request snapshots and the rules that turn two snapshots into events, plus
+       the webhook normaliser the dev ingest endpoint (and later push mode) uses. Talks plain HTTP to whatever base
+       address it's given (Postern, or the test bench's fake GitHub in tests). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Pylon.Sources.GitHub</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pylon.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pylon.Core\Pylon.Core.csproj" />
+  </ItemGroup>
+
+</Project>

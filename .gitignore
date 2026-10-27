@@ -1,0 +1,26 @@
+# .NET build output
+bin/
+obj/
+out/
+[Dd]ebug/
+[Rr]elease/
+*.user
+artifacts/
+publish/
+releases/
+
+# Rider / VS
+.idea/
+.vs/
+
+# Test results
+[Tt]est[Rr]esults/
+*.trx
+coverage*
+
+# OS
+Thumbs.db
+.DS_Store
+
+# AI screenshots (kept locally, never committed)
+captures/

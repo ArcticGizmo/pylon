@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- pylon-cli: watch the event stream from a terminal, and (dev) push test events into it. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Pylon.Cli</RootNamespace>
+    <AssemblyName>pylon-cli</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pylon.Client\Pylon.Client.csproj" />
+  </ItemGroup>
+
+</Project>

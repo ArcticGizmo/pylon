@@ -1,0 +1,269 @@
+# Pylon implementation plan
+
+How to take `scope.md` from paper to a tray app that turns GitHub polling into granular events, shows them in a stream widget, and can be driven by a test bench. Spikes come first, riskiest first. Spikes are throwaway code under `spikes/<name>/`, each with a README that records **what it proved**, as in Postern. Nothing in a spike goes into `src/` without being rewritten.
+
+## Status
+
+| Step | State |
+|---|---|
+| D decisions | Proposed below, not yet agreed |
+| S1 GitHub change detection | Not started |
+| S2 Event delivery over the pipe | Not started |
+| S3 Floating stream widget | Not started |
+| S4 Postern from Pylon | Not started |
+| S5 Push paper check | Not started |
+| Phase 1 walking skeleton | Not started |
+| Phase 2 stream widget + test bench (sender) | Not started |
+| Phase 3 GitHub monitors | Not started |
+| Phase 4 test bench (fake GitHub) | Not started |
+| Phase 5 consumers | Not started |
+| Phase 6 release | Not started |
+
+## What this adds to the scope
+
+The scope describes Pylon as invisible plumbing. Three additions make its value visible and testable:
+
+1. **Monitors**: a configured instance of a source adapter. "Watch `org/perch` and `org/postern` through the `github-work` connection, every 60 seconds, for PR opened, review requested, approved and merged."
+2. **The stream widget**: a floating, resizable window (off by default) that shows events as they arrive, can be filtered, and opens the payload behind any event.
+3. **The test bench**: a separate Avalonia app with its own HTTP server that sends chosen payloads to Pylon on demand, and later plays a stateful fake GitHub for the poll path.
+
+Two tensions with the scope, and how this plan resolves them:
+
+- **"Hints, not data" vs "see the payload".** Pylon keeps what it observed (the raw response slice, the before/after diff, or the webhook body) in its own **observation store**, with short retention. Only the stream widget reads it. Subscribers still get hint events and nothing more. The consumer contract doesn't change.
+- **Granular GitHub events vs cheap polling.** "Approved" and "checks failing" aren't visible from a single conditional request. The scope's ETag-only model may not be enough, so S1 measures it before anything is built.
+
+## D. Decisions to agree before building
+
+- [ ] **D1. Event `type` field.** Add a dotted type to the contract (`github.pr.approved`) next to `kind`, so monitors and subscribers can filter granularly. *Recommendation: yes. Update `scope.md`.*
+- [ ] **D2. Observation store.** Payloads live in a separate SQLite table, linked by `sequence`, pruned by age and size (for example 7 days or 200 MB), never sent over the pipe to subscribers. *Recommendation: yes.*
+- [ ] **D3. Subscriber transport.** Server-sent events over HTTP over `\\.\pipe\pylon`, with `Last-Event-ID` as the `since=` sequence. Works for .NET and for Node (`socketPath`). *Recommendation: SSE, confirmed by S2.*
+- [ ] **D4. How Pylon references `Postern.Client`.** Project reference through a `PosternRoot` MSBuild property defaulting to `..\postern`, and CI checks out both repos. Move to a package if a third consumer appears. *Recommendation: project reference.*
+- [ ] **D5. Postern scope granularity.** Per owner (`GET github/repos/org/*/pulls/**`) so adding a repo under a known owner doesn't trigger a new Postern approval, while a new owner does. *Recommendation: per owner.*
+- [ ] **D6. Monitor storage.** `monitors.json` in the data directory, written by the UI and editable by hand, like Postern's `providers.json`. *Recommendation: yes.*
+- [ ] **D7. Same shape as Postern.** .NET 10, `TreatWarningsAsErrors`, one per-user Avalonia tray process hosting the broker, code-only views, Debug builds run as **Pylon (Dev)** on `pylon-dev` against `postern-dev`, with their own data. *Recommendation: yes.*
+
+### Proposed event shapes
+
+What a subscriber gets (the scope's contract plus `type` and `monitorId`):
+
+```json
+{
+  "sequence": 18342,
+  "source": "github",
+  "monitorId": "gh-work-prs",
+  "topic": "github/pr/org/perch/412",
+  "type": "github.pr.approved",
+  "kind": "changed",
+  "resourceId": "https://github.com/org/perch/pull/412",
+  "hint": { "reviewDecision": "approved" },
+  "observedAtUtc": "2026-10-21T09:14:03Z"
+}
+```
+
+What the stream widget gets on top, internal to Pylon: `summary` ("org/perch#412 approved"), `status` (see below), `via` (`poll`, `push` or `test`), and an `observationId` for the payload.
+
+### Proposed GitHub event types
+
+| Type | Kind | Status in widget | Hint |
+|---|---|---|---|
+| `github.pr.opened` | created | info | `{ "draft": false }` |
+| `github.pr.ready_for_review` | changed | info | |
+| `github.pr.review_requested` | changed | attention | `{ "reviewer": "<login or team>" }` |
+| `github.pr.reviewed` | changed | info | `{ "state": "commented" \| "changes_requested" }` |
+| `github.pr.approved` | changed | success | `{ "reviewDecision": "approved" }` |
+| `github.pr.checks` | changed | pending / success / failure | `{ "checks": "pending" \| "passing" \| "failing" }` |
+| `github.pr.merged` | changed | merged | |
+| `github.pr.closed` | removed | neutral | |
+
+Each one can be switched on or off per monitor, and each monitor is limited to a list of repos.
+
+### Proposed monitor shape
+
+```json
+{
+  "id": "gh-work-prs",
+  "name": "Work PRs",
+  "source": "github",
+  "connection": "github-work",
+  "icon": "pull-request",
+  "accent": "#2f81f7",
+  "repos": ["org/perch", "org/postern"],
+  "events": ["opened", "review_requested", "reviewed", "approved", "checks", "merged"],
+  "filters": { "includeDrafts": false, "ignoreBots": true },
+  "pollSeconds": 60,
+  "enabled": true
+}
+```
+
+Repo wildcards (`org/*`) need an extra listing call and a refresh of the repo set, so they wait until after v1.
+
+## Phase 0: spikes, riskiest first
+
+### S1. GitHub change detection (load-bearing; do this first)
+
+The question: what is the cheapest set of calls that detects every event type above, for 5 and for 20 repos, through Postern?
+
+Candidate building blocks:
+
+| Block | Detects | Cost |
+|---|---|---|
+| A. `GET /repos/{o}/{r}/pulls?state=all&sort=updated&direction=desc&per_page=50` with ETag | opened, closed, merged, and anything that bumps `updated_at` | One call per repo per tick. A 304 is free |
+| B. `GET /pulls/{n}/reviews` and `/pulls/{n}/requested_reviewers` with ETag | reviews, approvals, review requests | Only for PRs that A says changed |
+| C. One GraphQL query per repo: open PRs with `reviewDecision`, `reviewRequests`, `latestReviews`, `statusCheckRollup` | everything at once | GraphQL points, no 304 |
+| D. `GET /commits/{sha}/check-runs` and `/commits/{sha}/status` per open PR head, with ETag | checks | One call per open PR per tick. A 304 is free |
+| E. `GET /repos/{o}/{r}/events` with ETag and `X-Poll-Interval` | opened, closed, reviews in one feed | Cheap, but documented as not real-time |
+| F. `GET /notifications` | review requests for the signed-in user | Cheap, but only about you |
+
+Starting hypothesis: A as the gate, B (or C) for PRs that changed, D for checks on open PR heads.
+
+- [ ] Find out which activities bump a PR's `updated_at` (review submitted, review requested, check run completed, push to head). This decides how much A can gate.
+- [ ] Build each strategy as a small poller through Postern (extend the C3 poller in `..\postern\spikes\consumers\Poller`).
+- [ ] Run against real repos for a working day. Record requests per hour, rate-limit units used (304s excluded), GraphQL points, and detection latency per event type.
+- [ ] Define the **fingerprint** per event type: which fields count as a change, and which are noise (bot reviews, `mergeable` computed lazily, check re-runs with the same outcome).
+- [ ] Check secondary rate limits when 20 repos poll at once. Decide on jitter and a concurrency cap.
+- [ ] Record the fine-grained PAT permissions needed (expect Pull requests, Checks, Commit statuses and Metadata, all read).
+- [ ] Record the Postern scopes actually used, for D5.
+
+Done when: a written choice of strategy, a cost table, and fingerprint rules per event type.
+
+### S2. Event delivery over the pipe
+
+- [ ] Kestrel on a named pipe serving SSE (`text/event-stream`) with several concurrent subscribers, from .NET and from Node.
+- [ ] Replay: reconnect with `Last-Event-ID` and get the gap from SQLite, or `resync` if the gap was pruned.
+- [ ] Slow consumer: a subscriber that stops reading gets dropped once a bounded channel fills, and gets `resync` on reconnect. The other subscribers aren't held up.
+- [ ] Topic wildcard matching (`github/pr/org/*/*`) plus type filters, with tests.
+- [ ] SQLite write rate for the log with WAL, at a burst of 100 events per second.
+
+Done when: a .NET and a Node subscriber survive a Pylon restart with correct replay, and a stalled subscriber is dropped without affecting others.
+
+### S3. Floating stream widget (Avalonia)
+
+- [ ] A borderless, topmost window that doesn't take focus when it appears (`ShowActivated = false`, plus `WS_EX_NOACTIVATE` and `WS_EX_TOOLWINDOW` so it stays out of the taskbar and Alt+Tab).
+- [ ] Resize from edges and corners (borderless windows need custom grips), drag to move, snap to a screen corner.
+- [ ] Three sizes: **compact** (the last few events), **expanded**, and **full screen** on the current monitor. Remember bounds per monitor and DPI.
+- [ ] A virtualised list holding 10,000 records at a burst of 50 events per second without the UI stalling. Cap the in-memory list and page older records from SQLite.
+- [ ] The record template: monitor icon with its accent colour, one line of summary, a status dot, and relative time. Unread records are marked.
+- [ ] Payload view: pretty-printed JSON with folding and copy, plus a before/after diff for poll events. Check whether AvaloniaEdit is worth the dependency or whether a plain `SelectableTextBlock` is enough.
+- [ ] Filter bar: monitor, repo, type, status, free text, plus pause.
+- [ ] Look at Postern's `Views/Ui.cs` and reuse its look so the two apps match.
+
+Done when: the widget runs fed by a timer that generates fake events, and passes the volume test.
+
+### S4. Postern from Pylon (small; C3 already de-risked most of it)
+
+- [ ] Reference `Postern.Client` the way D4 says, and build in CI.
+- [ ] Derive scopes from the enabled monitors, register, and re-register when a monitor adds a new owner. Show "waiting for Postern approval" on the monitor while it's pending, and "denied" if it's refused.
+- [ ] Postern not running, revoked, or rate-limited: the monitor backs off, shows why, and Pylon sends `resync` for that source when it recovers.
+
+### S5. Push (paper only for now)
+
+- [ ] Compare `gh webhook forward`, smee, Hookdeck CLI and Webhook Relay for getting GitHub webhooks to the desktop. Note what each needs (repo admin rights, an account, a public URL).
+- [ ] Collect real webhook bodies for `pull_request`, `pull_request_review`, `check_suite`, `check_run` and `status`. These become the test bench's templates and the push normaliser's test fixtures.
+- [ ] Note the open question on webhook signature checks (Postern's raw-secret tier, or a Postern verify endpoint).
+
+## Phase 1: walking skeleton
+
+```
+src/Pylon.Core            event contract, topic and type matching, fingerprints, monitor model. No Windows or UI deps
+src/Pylon.Sources.GitHub  GitHub poll adapter and (later) the webhook normaliser
+src/Pylon.Broker          named-pipe host, SSE subscriptions, SQLite log and observation store, monitor scheduler
+src/Pylon.App             Pylon.exe, the Avalonia tray app: Monitors, Apps, General pages and the stream widget
+src/Pylon.Client          consumer library: subscribe, since=, resync handling, retry
+src/Pylon.Cli             pylon-cli: status, tail, emit (Debug only)
+tools/Pylon.TestBench     Avalonia app plus Kestrel: payload sender, then fake GitHub
+tests/Pylon.Tests
+spikes/
+```
+
+- [ ] Solution, `Directory.Build.props`, `global.json` and CI to match Postern.
+- [ ] Event contract and topic/type matching in Core, with tests.
+- [ ] SQLite event log and observation store with retention.
+- [ ] Pipe host with SSE subscribe and replay, using what S2 proved.
+- [ ] A built-in **heartbeat** source (one event a minute while enabled) so the whole path works with no external system.
+- [ ] A dev ingest endpoint, `POST /_pylon/dev/ingest/{source}`, only in Debug builds or with `--dev-ingest`. It runs a payload through the same normaliser a webhook will use later, and tags the event `via: test`.
+- [ ] `pylon-cli tail` prints events as they arrive.
+- [ ] Tray app shell: tray icon, single instance, General page, `--headless`, Pylon (Dev) identity.
+- [ ] Integration tests through a real pipe: subscribe, replay, resync on pruned gap, slow-consumer drop, dev ingest disabled in Release.
+
+## Phase 2: stream widget and test bench sender
+
+These come before the GitHub monitors because they make everything after them easier to see and debug.
+
+**Stream widget**
+
+- [ ] Build the widget for real, using what S3 proved. Off by default, toggled from the tray menu.
+- [ ] Records from the live feed in-process (the widget doesn't go through the pipe), with history paged from SQLite.
+- [ ] Payload detail view, with "payload pruned" when retention has removed it.
+- [ ] Filters remembered between sessions.
+- [ ] The tray icon shows a small badge for unread events while the widget is closed.
+- [ ] Snapshot renders to `captures/`, like `Postern.Snapshots`.
+
+**Test bench v1: payload sender**
+
+- [ ] An Avalonia window with a template picker (the S5 webhook bodies, plus a raw Pylon event), a JSON editor, and **Send**.
+- [ ] Fields to change the common parts quickly: repo, PR number, actor, review state, check conclusion.
+- [ ] Sends to Pylon's dev ingest endpoint over `pylon-dev`, and shows the response and the resulting sequence.
+- [ ] Saved sequences ("open, request review, approve, merge") that replay with a delay between steps, for demos.
+
+Done when: you can click through a PR's life in the test bench and watch each step appear in the widget with the right icon, text and status, and open its payload.
+
+## Phase 3: GitHub monitors
+
+- [ ] The GitHub poll adapter, using the strategy and fingerprints from S1.
+- [ ] Per-resource fingerprint state persisted, so a Pylon restart doesn't replay old changes as new events. The first poll of a new monitor sets a baseline and emits nothing.
+- [ ] Each event type above, switchable per monitor, limited to the monitor's repos.
+- [ ] Optional filters: drafts, bots, and "review requested of me".
+- [ ] Scheduler: per-monitor interval with jitter, a global concurrency cap, backoff from `Postern-RateLimit-*` headers.
+- [ ] `resync` when a monitor's source has been unreachable or rate-limited and comes back.
+- [ ] **Monitors page**: add, edit, enable and disable monitors. Pick the Postern connection, repos, event types, interval, icon and accent. Show each monitor's last poll, last event, rate-limit use and Postern approval state.
+- [ ] Scope derivation and re-registration from S4.
+- [ ] Tests against recorded GitHub responses for every event type, including noise that must *not* produce an event.
+
+## Phase 4: test bench v2, a stateful fake GitHub
+
+- [ ] Kestrel inside the test bench serving the GitHub endpoints the S1 strategy uses, with real ETags and 304s and rate-limit headers (build on `..\postern\tools\Postern.FakeUpstream`).
+- [ ] A scenario panel: repos and PRs whose state you change with buttons (open, request review, review, approve, push, checks pass or fail, merge, close).
+- [ ] A request log showing what Pylon polled and whether it got 200 or 304.
+- [ ] Setup steps: a `github-fake` connection in Postern (Dev) pointing at `http://127.0.0.1:<port>` (Postern allows plain http on loopback), and a monitor using it.
+
+Done when: changing a PR in the test bench produces the matching event in the widget within one poll interval, through Postern, with no real GitHub involved.
+
+## Phase 5: consumers
+
+- [ ] Per-app approval for subscribers, the same pattern as Postern: requested topic patterns, an approval window, an app token, caller process checks.
+- [ ] **Apps** page: approved subscribers, their topics, connected or not, and revoke.
+- [ ] `Pylon.Client` for .NET: subscribe, reconnect with `since=`, `resync` callback, and a slow fallback refresh helper to make the consumer contract easy to follow.
+- [ ] Perch as the first subscriber, moving its GitHub polling into Pylon (scope stage 1).
+- [ ] A Node example over `socketPath`.
+
+## Phase 6: release
+
+- [ ] Installer, Run-key auto-start and `--supervise`, in-app updates, the same way Postern does them.
+- [ ] Icons from one SVG, a Dev variant, and README.
+- [ ] `scripts/smoke.ps1`: real exes end to end, including a Pylon crash and a Postern crash with replay and resync.
+
+## Deliberately deferred
+
+Push mode through a relay (after S5's paper check), repo wildcards, Actions runs, Octopus and Graph sources, desktop toasts, global hotkey for the widget, and out-of-process adapters. None of these change the contract, the store or the widget.
+
+## Exit criteria
+
+- [ ] Two GitHub monitors (personal and work connections) run for a week through Postern, within an agreed rate-limit budget.
+- [ ] Every event type in the table is seen live at least once, and none of them fire on noise.
+- [ ] The widget shows each event with the right monitor icon, summary and status, and opens its payload.
+- [ ] The test bench drives every event type through both the dev ingest path and the fake GitHub poll path.
+- [ ] A Pylon restart and a Postern restart each recover by themselves, with replay or `resync` as the scope says.
+- [ ] Perch receives events as a subscriber and still keeps its slow fallback refresh.
+- [ ] `scope.md` updated with the `type` field, the observation store, the stream widget and the scopes Pylon actually needed.
+
+## Suggested order
+
+```
+D decisions ──► S1 ──────────────────────────► Phase 3 ──► Phase 4 ──► Phase 5 ──► Phase 6
+           ├──► S2 ──► Phase 1 ──► Phase 2 ──┘
+           ├──► S3 ─────────────────┘
+           ├──► S4 ───────────────────────────┘
+           └──► S5 (paper, any time before Phase 2's templates)
+```
+
+S1 runs longest (a working day of real polling), so start it first and build S2 and S3 while it runs.
