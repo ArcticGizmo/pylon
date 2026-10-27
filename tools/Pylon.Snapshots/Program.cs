@@ -1,0 +1,146 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Styling;
+using Avalonia.Themes.Fluent;
+using Avalonia.Threading;
+using Pylon.App;
+using Pylon.App.Services;
+using Pylon.App.Views;
+using Pylon.Broker;
+using Pylon.Broker.Monitors;
+using Pylon.Core.Events;
+using Pylon.Core.Monitors;
+using Pylon.FakeGitHub;
+using Pylon.Sources.GitHub;
+
+// pylon-snapshots [outputDir]   (default ./captures)
+// Every name, repo and number below is made up. The events come from the real GitHub monitor polling the fake GitHub,
+// so summaries and payloads are what the app would really show.
+
+var output = Path.GetFullPath(args.FirstOrDefault() ?? "captures");
+Directory.CreateDirectory(output);
+var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+var dataDir = Path.Combine(Path.GetTempPath(), "pylon-snapshots-" + Guid.NewGuid().ToString("N")[..8]);
+Pylon.App.Program.Args = AppArgs.Parse(["--data-dir", dataDir]);
+
+var github = new FakeGitHubState();
+var (fake, fakeAddress) = await FakeGitHubApi.StartAsync(github);
+var runtime = PylonRuntime.Create(
+    new PylonOptions { PipeName = "pylon-snapshots", DataDirectory = dataDir, PublishDiscovery = false, DevIngest = true },
+    new PylonOverrides { MonitorHttp = _ => new HttpClient { BaseAddress = fakeAddress } });
+
+MonitorDefinition work = new()
+{
+    Id = "work-prs", Name = "Work PRs", Source = "github", Connection = "github-work", Icon = Icons.PullRequest, Accent = "#60A5FA",
+    Targets = ["example-org/api", "example-org/web"], Events = [.. GitHubEvents.All.Select(e => e.Name)], PollSeconds = 60,
+};
+MonitorDefinition personal = new()
+{
+    Id = "side-projects", Name = "Side projects", Source = "github", Connection = "github", Icon = Icons.Rocket, Accent = "#A78BFA",
+    Targets = ["example-user/tool"], Events = [GitHubEvents.Opened, GitHubEvents.Approved, GitHubEvents.Merged], PollSeconds = 120,
+};
+MonitorDefinition beat = new() { Id = "heartbeat", Name = "Heartbeat", Source = "heartbeat", Icon = Icons.Heartbeat, Accent = "#9AA4AE", PollSeconds = 300, Enabled = false };
+
+await Generate();
+runtime.Monitors.Save([work, personal, beat]);
+await Task.Delay(1500); // let each monitor's first poll land so the Monitors page shows real states
+
+using var session = HeadlessUnitTestSession.StartNew(typeof(SnapshotApp));
+await session.Dispatch(() =>
+{
+    var records = runtime.Store.ReadBefore(null, 200);
+    var approved = records.First(r => r.Type == "github.pr.approved" && r.Via == EventVia.Poll && r.MonitorId == work.Id);
+    Save(new PayloadWindow(approved, runtime.Store.GetPayload(approved.Sequence), work), "payload-poll", height: 900);
+    var webhook = records.First(r => r.Via == EventVia.Test);
+    Save(new PayloadWindow(webhook, runtime.Store.GetPayload(webhook.Sequence), null), "payload-webhook", height: 900);
+
+    Save(new MainWindow(runtime, new UiSettings(), () => { }), "monitors", height: 980);
+    Save(new MainWindow(runtime, new UiSettings(), () => { }, MainWindow.GeneralKey), "general");
+    Save(new MonitorEditor(new GitHubSource(), work, [work, personal, beat]), "monitor-editor");
+
+    var compact = new UiSettings { StreamMode = StreamMode.Compact, CompactWidth = 420, CompactHeight = 300 };
+    Save(new StreamWindow(runtime, compact), "stream-compact");
+
+    var expanded = new UiSettings { StreamMode = StreamMode.Expanded, ExpandedWidth = 480, ExpandedHeight = 680 };
+    Save(new StreamWindow(runtime, expanded), "stream-expanded");
+
+    var filtered = new UiSettings { StreamMode = StreamMode.Expanded, ExpandedWidth = 480, ExpandedHeight = 420, FilterText = "web", FilterStatuses = [EventStatus.Failure] };
+    Save(new StreamWindow(runtime, filtered), "stream-filtered");
+}, CancellationToken.None);
+
+Console.WriteLine($"Wrote snapshots to {output}");
+Environment.Exit(0); // the headless session's dispatcher thread doesn't wind down on its own
+return;
+
+async Task Generate()
+{
+    var api = github.Open("example-org/api", "Add rate-limit headers to the export endpoint", "dev-one");
+    var web = github.Open("example-org/web", "Dark mode for the settings page", "dev-two");
+    var tool = github.Open("example-user/tool", "Speed up config loading", "example-user");
+    var workMonitor = new GitHubMonitor(new MonitorContext(work, new HttpClient { BaseAddress = fakeAddress }, runtime.Store.StateFor(work.Id), TimeProvider.System));
+    var toolMonitor = new GitHubMonitor(new MonitorContext(personal, new HttpClient { BaseAddress = fakeAddress }, runtime.Store.StateFor(personal.Id), TimeProvider.System));
+    await workMonitor.PollAsync(CancellationToken.None);
+    await toolMonitor.PollAsync(CancellationToken.None);
+
+    async Task Poll()
+    {
+        foreach (var monitor in new[] { workMonitor, toolMonitor })
+        {
+            var result = await monitor.PollAsync(CancellationToken.None);
+            runtime.Hub.Publish(result.Events);
+        }
+    }
+
+    var fresh = github.Open("example-org/web", "Fix flaky login test", "dev-three");
+    await Poll();
+    github.RequestReview(api, "dev-two");
+    github.RequestReview(fresh, "team:frontend");
+    await Poll();
+    github.Push(web);
+    await Poll();
+    github.SetChecks(web, "failing");
+    github.Review(api, "dev-two", "CHANGES_REQUESTED");
+    await Poll();
+    github.Push(api);
+    github.SetChecks(api, "passing");
+    await Poll();
+    github.Review(api, "dev-two", "APPROVED");
+    github.Review(tool, "example-friend", "APPROVED");
+    await Poll();
+    github.Merge(api, "dev-one");
+    github.Merge(tool, "example-user");
+    await Poll();
+
+    runtime.Hub.Publish([EventDraft.Resync("github", "recovered", work.Id)]);
+    github.Changed += hook => runtime.Hub.Publish(WebhookNormaliser.Normalise(hook.Event, hook.Body, EventVia.Test));
+    github.Review(fresh, "dev-one", "COMMENTED");
+    github.SetChecks(fresh, "pending");
+}
+
+void Save(Window window, string name, double? height = null)
+{
+    if (height is { } h)
+        window.Height = h;
+    window.Show();
+    Dispatcher.UIThread.RunJobs();
+    var frame = window.CaptureRenderedFrame() ?? throw new InvalidOperationException($"No frame for {name}");
+    var path = Path.Combine(output, $"{stamp}-ui-{name}.png");
+    frame.Save(path);
+    Console.WriteLine(path);
+    window.Close();
+}
+
+sealed class SnapshotApp : Application
+{
+    public override void Initialize()
+    {
+        RequestedThemeVariant = ThemeVariant.Dark;
+        Styles.Add(new FluentTheme());
+    }
+
+    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<SnapshotApp>()
+        .UseSkia()
+        .WithInterFont()
+        .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
+}

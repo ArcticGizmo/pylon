@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>Pylon.App</RootNamespace>
+    <AssemblyName>Pylon</AssemblyName>
+    <Product>Pylon</Product>
+    <Description>Local event broker: turns polling into change events for apps on this machine, and shows them as they arrive.</Description>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Pylon.Tests" />
+    <InternalsVisibleTo Include="pylon-snapshots" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pylon.Core\Pylon.Core.csproj" />
+    <ProjectReference Include="..\Pylon.Broker\Pylon.Broker.csproj" />
+  </ItemGroup>
+
+</Project>

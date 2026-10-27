@@ -20,6 +20,9 @@ public sealed class GitHubMonitor : IMonitorRunner
 {
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    // People read payloads in the stream widget, so "+00:00" rather than "+00:00". Never embedded in HTML.
+    static readonly JsonSerializerOptions Readable = new() { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
     readonly MonitorContext _context;
     readonly ConditionalHttp _http;
     readonly DiffOptions _options;
@@ -137,7 +140,7 @@ public sealed class GitHubMonitor : IMonitorRunner
             Summary = change.Summary,
             Status = change.Status,
             Via = EventVia.Poll,
-            Payload = Payload.Json(payload.ToJsonString(new JsonSerializerOptions { WriteIndented = true })),
+            Payload = Payload.Json(payload.ToJsonString(Readable)),
         };
     }
 }
