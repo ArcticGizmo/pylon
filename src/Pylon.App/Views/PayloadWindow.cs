@@ -79,7 +79,7 @@ internal sealed class PayloadWindow : Window
                             VerticalAlignment = VerticalAlignment.Center,
                             Children =
                             {
-                                new TextBlock { Text = record.Summary, FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = Ui.Foreground, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 },
+                                new TextBlock { Text = record.Summary, FontSize = 16, FontWeight = FontWeight.SemiBold, Foreground = Ui.Title, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 },
                                 Ui.Text($"{record.ObservedAtUtc.ToLocalTime():ddd d MMM HH:mm:ss} · {monitor?.Name ?? "no monitor"} · via {record.Via.ToString().ToLowerInvariant()}", Ui.Muted, 12),
                             },
                         },
@@ -162,7 +162,7 @@ internal sealed class PayloadWindow : Window
 
         Content = new DockPanel
         {
-            Margin = new Thickness(18),
+            Margin = new Thickness(24, 20),
             Children =
             {
                 Ui.Bottom(buttons),

@@ -18,12 +18,12 @@ internal sealed class MainWindow : Window
     public const string MonitorsKey = "monitors";
     public const string GeneralKey = "general";
 
-    const double NavWidth = 190;
+    const double NavWidth = 200;
 
     readonly MonitorsPage _monitors;
     readonly Panel _content = new();
     readonly Dictionary<string, Control> _pages = [];
-    readonly List<(string Key, Button Item)> _nav = [];
+    readonly List<(string Key, Border Item, TextBlock Label)> _nav = [];
 
     public MainWindow(PylonRuntime runtime, UiSettings settings, Action showStream, string page = MonitorsKey)
     {
@@ -37,7 +37,7 @@ internal sealed class MainWindow : Window
         Icon = TrayArt.WindowIcon();
 
         _monitors = new MonitorsPage(runtime);
-        var nav = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+        var nav = new StackPanel { Margin = new Thickness(8, 4), Spacing = 2 };
         AddPage(nav, MonitorsKey, "Monitors", _monitors);
         AddPage(nav, GeneralKey, "General", General(runtime, settings, showStream));
 
@@ -99,12 +99,11 @@ internal sealed class MainWindow : Window
             return;
         foreach (var (pageKey, page) in _pages)
             page.IsVisible = pageKey == key;
-        foreach (var (itemKey, item) in _nav)
+        foreach (var (itemKey, item, label) in _nav)
         {
             var selected = itemKey == key;
-            item.Background = selected ? Ui.Panel : Ui.Sunken;
-            item.Foreground = selected ? Ui.Foreground : Ui.Muted;
-            item.BorderBrush = selected ? Ui.Accent : Brushes.Transparent;
+            item.Background = selected ? Ui.AccentTint : Brushes.Transparent;
+            label.Foreground = selected ? Ui.Title : Ui.Foreground;
         }
         if (key == MonitorsKey)
             _monitors.ShowList();
@@ -115,45 +114,31 @@ internal sealed class MainWindow : Window
         page.IsVisible = false;
         _pages[key] = page;
         _content.Children.Add(page);
-        var item = new Button
-        {
-            Content = title,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Left,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Background = Ui.Sunken,
-            Foreground = Ui.Muted,
-            BorderThickness = new Thickness(3, 0, 0, 0),
-            BorderBrush = Brushes.Transparent,
-            CornerRadius = new CornerRadius(0),
-            Padding = new Thickness(15, 0, 12, 0),
-            Height = 42,
-            FontSize = 14,
-        };
-        item.Click += (_, _) => NavigateTo(key);
+        var label = new TextBlock { Text = title, FontSize = 14, Foreground = Ui.Foreground, VerticalAlignment = VerticalAlignment.Center };
+        var item = Ui.Selectable(label, () => NavigateTo(key));
         nav.Children.Add(item);
-        _nav.Add((key, item));
+        _nav.Add((key, item, label));
     }
 
-    static Control Brand() => new StackPanel
+    static Control Brand()
     {
-        Orientation = Orientation.Horizontal,
-        Spacing = 10,
-        Margin = new Thickness(16, 18, 12, 14),
-        Children =
+        var name = new StackPanel
         {
-            Icons.Glyph(Icons.Pylon, TrayArt.Colour, 28),
-            new StackPanel
+            Orientation = Orientation.Horizontal,
+            Spacing = 10,
+            Children =
             {
-                VerticalAlignment = VerticalAlignment.Center,
-                Children =
-                {
-                    new TextBlock { Text = "Pylon", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Ui.Foreground },
-                    Ui.Text($"{PylonRuntime.Version}{Profile.DisplaySuffix}", Ui.Muted, 11),
-                },
+                Icons.Glyph(Icons.Pylon, TrayArt.Colour, 24),
+                new TextBlock { Text = "Pylon", FontSize = 22, FontWeight = FontWeight.SemiBold, Foreground = Ui.Title, VerticalAlignment = VerticalAlignment.Center },
             },
-        },
-    };
+        };
+        // Dev instances poll through Postern (Dev) and keep their own data; flag it so it's obvious at a glance.
+        if (Profile.IsDev)
+            name.Children.Add(new TextBlock { Text = "- DEV", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = Ui.Dev, VerticalAlignment = VerticalAlignment.Center });
+        var tagline = Ui.Text($"changes, not polling · {PylonRuntime.Version}", Ui.Muted, 11);
+        tagline.Margin = new Thickness(0, 6, 0, 0);
+        return new StackPanel { Margin = new Thickness(18, 20, 18, 18), Children = { name, tagline } };
+    }
 
     static Control General(PylonRuntime runtime, UiSettings settings, Action showStream)
     {
@@ -168,7 +153,7 @@ internal sealed class MainWindow : Window
         {
             Content = new StackPanel
             {
-                Margin = new Thickness(18),
+                Margin = Ui.PageMargin,
                 Spacing = 14,
                 Children =
                 {

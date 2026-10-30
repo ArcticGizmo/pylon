@@ -49,7 +49,7 @@ internal sealed class TextWindow : Window
 
         Content = new DockPanel
         {
-            Margin = new Thickness(18),
+            Margin = new Thickness(24, 20),
             Children =
             {
                 Ui.Top(new StackPanel
@@ -58,7 +58,7 @@ internal sealed class TextWindow : Window
                     Margin = new Thickness(0, 0, 0, 12),
                     Children =
                     {
-                        new SelectableTextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Ui.Foreground, TextWrapping = TextWrapping.Wrap },
+                        new SelectableTextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Ui.Title, TextWrapping = TextWrapping.Wrap },
                         Ui.Text(subtitle, Ui.Muted, 12),
                     },
                 }),

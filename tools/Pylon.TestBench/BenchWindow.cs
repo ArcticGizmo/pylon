@@ -18,15 +18,17 @@ namespace Pylon.TestBench;
 /// </summary>
 internal sealed class BenchWindow : Window
 {
-    static readonly IBrush Backdrop = Brush("#15181B");
-    static readonly IBrush Panel = Brush("#1E2226");
-    static readonly IBrush Edge = Brush("#2E343A");
-    static readonly IBrush Ink = Brush("#E6E9EC");
-    static readonly IBrush Muted = Brush("#9AA4AE");
-    static readonly IBrush Accent = Brush("#4FB8A8");
-    static readonly IBrush Warning = Brush("#F5A524");
-    static readonly IBrush Danger = Brush("#EF5350");
+    // Pylon's palette (Emuwren's), restated because the bench doesn't reference the app.
+    static readonly IBrush Backdrop = Brush("#181820");
+    static readonly IBrush Panel = Brush("#1F1F2A");
+    static readonly IBrush Edge = Brush("#2D2D3C");
+    static readonly IBrush Ink = Brush("#E1E1EB");
+    static readonly IBrush Muted = Brush("#8C8CA0");
+    static readonly IBrush Accent = Brush("#60A5FA");
+    static readonly IBrush Warning = Brush("#FBBF24");
+    static readonly IBrush Danger = Brush("#F87171");
     static readonly IBrush Ok = Brush("#4ADE80");
+    static readonly IBrush Faint = Brush("#75758A");
     static readonly FontFamily Mono = new("Cascadia Mono, Consolas, monospace");
 
     readonly FakeGitHubState _state;
@@ -107,7 +109,7 @@ internal sealed class BenchWindow : Window
         var setup = Button("Postern setup for polling…", ShowSetup);
         return new Border
         {
-            Background = Brush("#101315"),
+            Background = Panel,
             BorderBrush = Edge,
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(14, 8),
@@ -408,7 +410,7 @@ internal sealed class BenchWindow : Window
                 Text = $"{entry.At:HH:mm:ss} {tag} {entry.Text}",
                 FontFamily = Mono,
                 FontSize = 11.5,
-                Foreground = entry.Kind == BenchLog.Kind.Fake && entry.Text.StartsWith("304", StringComparison.Ordinal) ? Brush("#6B7580") : colour,
+                Foreground = entry.Kind == BenchLog.Kind.Fake && entry.Text.StartsWith("304", StringComparison.Ordinal) ? Faint : colour,
                 TextWrapping = TextWrapping.Wrap,
             });
         }
@@ -475,7 +477,7 @@ internal sealed class BenchWindow : Window
         if (primary)
         {
             button.Background = Accent;
-            button.Foreground = Brush("#0B1F1C");
+            button.Foreground = Brush("#0B1220");
         }
         button.Click += (_, _) => onClick();
         return button;
@@ -529,7 +531,7 @@ internal sealed class BenchWindow : Window
         {
             Width = 10;
             Height = 10;
-            Fill = Brush("#6B7580");
+            Fill = Faint;
             VerticalAlignment = VerticalAlignment.Center;
         }
     }

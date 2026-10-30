@@ -29,7 +29,7 @@ internal sealed class MonitorDetail : UserControl
     readonly PylonRuntime _runtime;
     readonly StackPanel _header = new() { Spacing = 4 };
     readonly StackPanel _tabs = new() { Orientation = Orientation.Horizontal, Spacing = 2 };
-    readonly Dictionary<Tab, Button> _tabButtons = [];
+    readonly Dictionary<Tab, (Border Item, TextBlock Label)> _tabButtons = [];
     readonly ScrollViewer _scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     readonly StackPanel _activity = new() { Spacing = 10 };
     readonly StackPanel _polls = new() { Spacing = 4 };
@@ -50,18 +50,11 @@ internal sealed class MonitorDetail : UserControl
 
         foreach (var tab in Enum.GetValues<Tab>())
         {
-            var button = new Button
-            {
-                Content = tab.ToString(),
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0, 0, 0, 2),
-                CornerRadius = new CornerRadius(0),
-                Padding = new Thickness(14, 8),
-                FontSize = 14,
-            };
-            button.Click += (_, _) => Select(tab);
-            _tabButtons[tab] = button;
-            _tabs.Children.Add(button);
+            var label = new TextBlock { Text = tab.ToString(), FontSize = 14 };
+            var item = Ui.Selectable(label, () => Select(tab));
+            item.Padding = new Thickness(14, 8);
+            _tabButtons[tab] = (item, label);
+            _tabs.Children.Add(item);
         }
 
         _hideQuiet.IsCheckedChanged += (_, _) => RenderPolls();
@@ -80,11 +73,11 @@ internal sealed class MonitorDetail : UserControl
         backButton.MinWidth = 0;
         Content = new DockPanel
         {
-            Margin = new Thickness(18, 14, 18, 0),
+            Margin = new Thickness(Ui.PageMargin.Left, Ui.PageMargin.Top, Ui.PageMargin.Right, 0),
             Children =
             {
                 Ui.Top(new StackPanel { Spacing = 10, Children = { new StackPanel { Orientation = Orientation.Horizontal, Children = { backButton } }, _header } }),
-                Ui.Top(new Border { BorderBrush = Ui.Border, BorderThickness = new Thickness(0, 0, 0, 1), Margin = new Thickness(0, 8, 0, 12), Child = _tabs }),
+                Ui.Top(new Border { BorderBrush = Ui.Border, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(0, 0, 0, 8), Margin = new Thickness(0, 14, 0, 14), Child = _tabs }),
                 _scroll,
             },
         };
@@ -120,11 +113,11 @@ internal sealed class MonitorDetail : UserControl
     public void Select(Tab tab)
     {
         _tab = tab;
-        foreach (var (key, button) in _tabButtons)
+        foreach (var (key, (item, label)) in _tabButtons)
         {
             var selected = key == tab;
-            button.Foreground = selected ? Ui.Foreground : Ui.Muted;
-            button.BorderBrush = selected ? Ui.Accent : Brushes.Transparent;
+            item.Background = selected ? Ui.AccentTint : Brushes.Transparent;
+            label.Foreground = selected ? Ui.Title : Ui.Muted;
         }
         switch (tab)
         {
@@ -211,7 +204,7 @@ internal sealed class MonitorDetail : UserControl
                             VerticalAlignment = VerticalAlignment.Center,
                             Children =
                             {
-                                new TextBlock { Text = definition.Name, FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = Ui.Foreground },
+                                new TextBlock { Text = definition.Name, FontSize = 18, FontWeight = FontWeight.SemiBold, Foreground = Ui.Title },
                                 Ui.Text($"{definition.Id} · every {definition.PollSeconds}s · last poll {Ui.Ago(status?.LastPollAt, now)}{next}", Ui.Muted, 12),
                             },
                         },

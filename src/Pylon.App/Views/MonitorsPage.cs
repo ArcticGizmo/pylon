@@ -36,7 +36,7 @@ internal sealed class MonitorsPage : UserControl
         {
             Content = new StackPanel
             {
-                Margin = new Thickness(18),
+                Margin = Ui.PageMargin,
                 Spacing = 14,
                 Children =
                 {
@@ -167,7 +167,7 @@ internal sealed class MonitorsPage : UserControl
             Spacing = 6,
             Children =
             {
-                Ui.Button("Details", () => ShowDetail(definition.Id), primary: true),
+                Ui.Button("Details", () => ShowDetail(definition.Id)),
                 Ui.Button("Edit", () => { if (source is not null) Edit(source, definition); }),
                 Ui.Button("Poll now", () => _runtime.Monitors.PollNow(definition.Id)),
                 Ui.Button(definition.Enabled ? "Turn off" : "Turn on", () => Replace(definition, definition with { Enabled = !definition.Enabled })),
@@ -200,7 +200,7 @@ internal sealed class MonitorsPage : UserControl
                                     VerticalAlignment = VerticalAlignment.Center,
                                     Children =
                                     {
-                                        new TextBlock { Text = definition.Name, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Ui.Foreground },
+                                        new TextBlock { Text = definition.Name, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Ui.Title },
                                         Ui.Text($"{definition.Id} · every {definition.PollSeconds}s", Ui.Muted, 11.5),
                                     },
                                 },
