@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Pylon.Broker.Events;
+using Pylon.Broker.Storage;
 using Pylon.Core.Events;
 using Pylon.Core.Monitors;
 using Postern.Client;
@@ -32,6 +33,7 @@ public sealed class MonitorHost : IAsyncDisposable
     public static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
 
     readonly EventHub _hub;
+    readonly PollJournal _journal;
     readonly PosternGateway? _postern;
     readonly Func<string, HttpClient>? _httpOverride;
     readonly string _dataDirectory;
@@ -44,11 +46,12 @@ public sealed class MonitorHost : IAsyncDisposable
     CancellationTokenSource? _posternLoop;
     Task? _posternTask;
 
-    public MonitorHost(IEnumerable<ISource> sources, EventHub hub, PosternGateway? postern, Func<string, HttpClient>? httpOverride,
+    public MonitorHost(IEnumerable<ISource> sources, EventHub hub, PollJournal journal, PosternGateway? postern, Func<string, HttpClient>? httpOverride,
         string dataDirectory, TimeProvider time, ILogger log)
     {
         _sources = sources.ToDictionary(s => s.Name, StringComparer.Ordinal);
         _hub = hub;
+        _journal = journal;
         _postern = postern;
         _httpOverride = httpOverride;
         _dataDirectory = dataDirectory;
@@ -73,6 +76,17 @@ public sealed class MonitorHost : IAsyncDisposable
 
     /// <summary>Raised from worker threads whenever any monitor's status changes.</summary>
     public event Action? Changed;
+
+    /// <summary>Raised from worker threads after each poll is in the journal.</summary>
+    public event Action<PollRecord>? Polled;
+
+    public PollJournal Journal => _journal;
+
+    /// <summary>What a monitor is keeping track of, from its stored fingerprints.</summary>
+    public IReadOnlyList<WatchedItem> Watched(string id) =>
+        Definitions.FirstOrDefault(d => d.Id == id) is { } definition && Source(definition.Source) is { } source
+            ? source.Watched(_hub.Store.StateFor(id))
+            : [];
 
     public void Start()
     {
@@ -272,8 +286,12 @@ public sealed class MonitorHost : IAsyncDisposable
                 catch (Exception ex)
                 {
                     host._log.LogWarning(ex, "Monitor {Id} poll failed", definition.Id);
-                    delay = Failed(Describe(ex), null);
+                    var error = Describe(ex);
+                    if (_pollStarted is { } started)
+                        Record(new PollRecord { MonitorId = definition.Id, StartedAt = started, Milliseconds = Elapsed(), Outcome = PollOutcome.Error, Error = error });
+                    delay = Failed(error, null);
                 }
+                _pollStarted = null;
 
                 Status = Status with { NextPollAt = host._time.GetUtcNow() + delay };
                 host.Changed?.Invoke();
@@ -308,11 +326,28 @@ public sealed class MonitorHost : IAsyncDisposable
             }
 
             Update(MonitorState.Polling, null);
+            _pollStarted = host._time.GetUtcNow();
+            _pollTimestamp = host._time.GetTimestamp();
             var result = await _runner.PollAsync(cancellationToken);
             var now = host._time.GetUtcNow();
             var published = result.Events.Count > 0
                 ? host._hub.Publish([.. result.Events.Select(e => e.MonitorId is null ? e with { MonitorId = definition.Id } : e)])
                 : [];
+            Record(new PollRecord
+            {
+                MonitorId = definition.Id,
+                StartedAt = _pollStarted.Value,
+                Milliseconds = Elapsed(),
+                Outcome = result.Error is null ? PollOutcome.Ok : result.RetryAfter is null ? PollOutcome.Error : PollOutcome.Throttled,
+                Error = result.Error,
+                Requests = result.Requests,
+                NotModified = result.NotModified,
+                Calls = result.Calls,
+                Observations = result.Observations,
+                Notes = result.Notes,
+                Sequences = [.. published.Select(r => r.Sequence)],
+            });
+            _pollStarted = null;
             Status = Status with
             {
                 LastPollAt = now,
@@ -331,6 +366,24 @@ public sealed class MonitorHost : IAsyncDisposable
             _failures = 0;
             Update(MonitorState.Idle, result.NotModified > 0 ? $"{result.Requests} request(s), {result.NotModified} unchanged (304)." : $"{result.Requests} request(s).");
             return Jitter(TimeSpan.FromSeconds(definition.PollSeconds));
+        }
+
+        DateTimeOffset? _pollStarted;
+        long _pollTimestamp;
+
+        long Elapsed() => (long)host._time.GetElapsedTime(_pollTimestamp).TotalMilliseconds;
+
+        /// <summary>The journal is for looking at; a failure to write it never stops the monitor.</summary>
+        void Record(PollRecord poll)
+        {
+            try
+            {
+                host.Polled?.Invoke(host._journal.Add(poll));
+            }
+            catch (Exception ex)
+            {
+                host._log.LogWarning(ex, "Couldn't record a poll of {Id}", definition.Id);
+            }
         }
 
         bool ScopesApproved(ISource source, PosternGateway postern) =>

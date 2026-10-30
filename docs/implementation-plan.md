@@ -8,8 +8,9 @@ Updated after the unattended run of 2026-10-27/28 (branch `overnight/skeleton`, 
 
 | Step | State |
 |---|---|
-| D decisions | ✅ All seven taken as recommended (D4: project reference through `PosternRoot`) |
-| S1 GitHub change detection | ⏳ **Needs you.** The starting hypothesis is built and swappable; the assumptions it rests on are listed under "S1 assumptions" below |
+| D decisions | ✅ D1–D7 taken as recommended (D4: project reference through `PosternRoot`); D8 (REST through Postern, no `gh`) agreed 2026-10-30 |
+| S1 GitHub change detection | ⏳ **Needs you.** No spike: it's measured in the app itself (see "Measuring S1 in the app" below). The starting hypothesis is built and swappable; the assumptions it rests on are listed under "S1 assumptions" below |
+| Monitor detail page | ✅ Added 2026-10-30. Activity (every poll: requests, ETags, rate cost, what changed per PR, what was reported or kept quiet and why), Watching (each monitor's stored fingerprints) and Budget (requests per hour, 304 share, A5 evidence). Backed by a poll journal in `pylon.db` |
 | S2 Event delivery over the pipe | ✅ Folded into Phase 1 and proved by integration tests (live, replay, pruned gap, unknown sequence, slow subscriber, stop ends streams). Node subscriber not tried |
 | S3 Floating stream widget | ✅ Folded into Phase 2. Proved offscreen (snapshots) and live (Pylon.exe stayed responsive through 3,000 events at ~1,000/s with the widget open). **Needs you** for feel: focus, drag, resize, snap, DPI across monitors |
 | S4 Postern from Pylon | ✅ Scopes derived per owner, registration, re-registration only when not covered, waiting/denied/not-running states, "Ask Postern again". Proved end to end by `tools/Pylon.E2E` against Postern (Dev) |
@@ -36,6 +37,7 @@ Updated after the unattended run of 2026-10-27/28 (branch `overnight/skeleton`, 
 - A PR first seen open after the baseline is `opened` only if it was created after the baseline; an old PR that drifts into the 50-PR window isn't news.
 - Checks report `pending` only for a new head commit. On the same commit only a passing/failing result that differs from the last one reported counts, so re-runs that end the same way are quiet.
 - Payloads are cut at 512 KB each and kept 7 days or 200 MB, whichever comes first; events 30 days or 100,000.
+- The poll journal keeps polls for 3 days. Response bodies (most of its size) are kept for 1 day or 100 MB, newest first, so on a busy setup only the most recent bodies are there to open.
 - Dev ingest (`/_pylon/dev/*`) is always on in Debug builds and off in Release unless `--dev-ingest` is passed.
 
 ### S1 assumptions (confirm with real repos, with you there)
@@ -49,6 +51,24 @@ Updated after the unattended run of 2026-10-27/28 (branch `overnight/skeleton`, 
 | A5 | 304s through Postern don't count against the rate limit | Polling cost is higher than planned |
 | A6 | Fine-grained PAT needs only Pull requests, Checks, Commit statuses and Metadata (all read) | 403s |
 | A7 | Polling every 60s with one list + (open PRs × 2) checks calls per repo stays well inside the budget for ~20 repos | Secondary rate limits; the scheduler would need a global concurrency cap (it has jitter and backoff, not a cap) |
+
+### Measuring S1 in the app
+
+Every poll is journalled, so S1 needs no separate poller. On a GitHub monitor, **Check assumptions** (in its editor) makes it do the work the hypothesis skips, and flag wherever the hypothesis would have missed something:
+
+| Assumption | How the app checks it | Where it shows |
+|---|---|---|
+| A1 | Fetches reviews for every open PR on every poll (304s when unchanged), and flags a new review whose PR's `updated_at` didn't move | Activity: an `A1` warning on the PR, and an "assumption broken" chip on the poll |
+| A2 | Notes when checks changed on the same commit, with or without `updated_at` moving | Activity: `A2` notes |
+| A3 | Flags requested reviewers changing without `updated_at` moving | Activity: `A3` warning |
+| A4 | Whenever the pulls list answers 304, fetches it again unconditionally and compares | Activity: an `A4` warning on the poll, and the extra request marked with its purpose |
+| A5 | Each call's cost is the drop in the remaining limit since the call before it in the same poll | Budget: "Are 304s free?" |
+| A6 | Any 403 shows with Postern's error code on the request | Activity: the request row |
+| A7 | Requests per hour that count against the limit, and the lowest remaining | Budget |
+
+The test bench has a switch for each of A1, A2 and A4 that makes the fake GitHub break it, so the checks can be seen working before any real repository is involved.
+
+The session: a sandbox repo with an Actions workflow, a fine-grained read-only PAT in a Postern (Dev) connection, a monitor on it with **Check assumptions** on and a 10s interval, and a second account to request reviews from and approve. Then a working day on the real repos (with you there) for A5 and A7, with the check off to see the true cost.
 
 ### Known gaps
 
@@ -81,6 +101,7 @@ Two tensions with the scope, and how this plan resolves them:
 - [x] **D5. Postern scope granularity.** Per owner (`GET github/repos/org/*/pulls/**`) so adding a repo under a known owner doesn't trigger a new Postern approval, while a new owner does. *Recommendation: per owner.*
 - [x] **D6. Monitor storage.** `monitors.json` in the data directory, written by the UI and editable by hand, like Postern's `providers.json`. *Recommendation: yes.*
 - [x] **D7. Same shape as Postern.** .NET 10, `TreatWarningsAsErrors`, one per-user Avalonia tray process hosting the broker, code-only views, Debug builds run as **Pylon (Dev)** on `pylon-dev` against `postern-dev`, with their own data. *Recommendation: yes.*
+- [x] **D8. GitHub access.** Pylon calls the REST endpoints directly through a Postern connection holding a fine-grained, read-only PAT. It never shells out to `gh`: that would bypass Postern's scopes and rate-limit view, use `gh`'s broad `repo` token, make ETag/304 polling awkward, and spawn a process per poll. Any user choice of credential (PAT, or borrowing the `gh` login) belongs in Postern's connection setup, not in Pylon. `gh webhook forward` stays a candidate for push (S5).
 
 ### Proposed event shapes
 

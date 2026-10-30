@@ -91,9 +91,12 @@ internal sealed class MonitorEditor : Window
             {
                 (GitHubEvents.IncludeDrafts, "Include drafts (otherwise drafts are quiet until marked ready)", false),
                 (GitHubEvents.IgnoreBots, "Ignore bots (PRs opened by bots, and reviews by bots)", true),
+                (GitHubEvents.CheckAssumptions, "Check assumptions (extra requests; flags anything the poll strategy would miss)", false),
             })
             {
                 var box = new CheckBox { Content = label, IsChecked = current.Option(name, fallback) };
+                if (name == GitHubEvents.CheckAssumptions)
+                    ToolTip.SetTip(box, "Fetches reviews for every open PR on every poll, and fetches the pulls list again whenever it answers 304, then notes in the monitor's Activity wherever the normal strategy would have missed a change. For measuring (S1), not for every day: the refetch costs one request per repository per poll.");
                 _options[name] = box;
                 options.Children.Add(box);
             }

@@ -35,6 +35,7 @@ internal sealed class StreamWindow : Window
 
     readonly PylonRuntime _runtime;
     readonly UiSettings _settings;
+    readonly Action<string, long>? _showPoll;
     readonly ObservableCollection<EventRecord> _visible = [];
     readonly List<EventRecord> _all = [];
     readonly List<EventRecord> _held = [];
@@ -57,10 +58,12 @@ internal sealed class StreamWindow : Window
     bool _historyExhausted;
     bool _moving;
 
-    public StreamWindow(PylonRuntime runtime, UiSettings settings)
+    /// <param name="showPoll">Opens a monitor's detail at one poll, for an event's "Show the poll".</param>
+    public StreamWindow(PylonRuntime runtime, UiSettings settings, Action<string, long>? showPoll = null)
     {
         _runtime = runtime;
         _settings = settings;
+        _showPoll = showPoll;
         _filter = settings.Filter;
 
         Title = "Pylon stream";
@@ -526,7 +529,10 @@ internal sealed class StreamWindow : Window
     void OpenPayload(EventRecord record)
     {
         var monitor = record.MonitorId is { } id ? _monitors.GetValueOrDefault(id) : null;
-        var window = new PayloadWindow(record, record.HasPayload ? _runtime.Store.GetPayload(record.Sequence) : null, monitor);
+        Action? showPoll = _showPoll is { } show && record.MonitorId is { } monitorId && _runtime.Journal.PollFor(record.Sequence) is { } poll
+            ? () => show(monitorId, poll)
+            : null;
+        var window = new PayloadWindow(record, record.HasPayload ? _runtime.Store.GetPayload(record.Sequence) : null, monitor, showPoll);
         window.Show();
         window.Activate();
     }

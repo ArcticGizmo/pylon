@@ -11,7 +11,8 @@ namespace Pylon.App.Views;
 
 /// <summary>
 /// Every monitor with what it's doing right now, and Pylon's standing with Postern (which every GitHub monitor depends
-/// on). Edits save monitors.json and restart the loops; fingerprints survive unless "Start over" is used.
+/// on). Edits save monitors.json and restart the loops; fingerprints survive unless "Start over" is used. "Details"
+/// swaps the list for one monitor's <see cref="MonitorDetail"/>.
 /// </summary>
 internal sealed class MonitorsPage : UserControl
 {
@@ -20,15 +21,18 @@ internal sealed class MonitorsPage : UserControl
     readonly StackPanel _list = new() { Spacing = 10 };
     readonly TextBlock _error = Ui.Text("", Ui.Danger, 12);
     readonly DispatcherTimer _tick;
+    readonly ScrollViewer _overview;
+    readonly MonitorDetail _detail;
 
     public MonitorsPage(PylonRuntime runtime)
     {
         _runtime = runtime;
+        _detail = new MonitorDetail(runtime, ShowList);
         var add = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         foreach (var source in runtime.Monitors.Sources)
             add.Children.Add(Ui.Button($"Add {source.DisplayName}", () => Edit(source, null), primary: source.UsesPostern));
 
-        Content = new ScrollViewer
+        Content = _overview = new ScrollViewer
         {
             Content = new StackPanel
             {
@@ -54,8 +58,30 @@ internal sealed class MonitorsPage : UserControl
         Refresh();
     }
 
+    public bool ShowingDetail => Content == _detail;
+
+    public void ShowList()
+    {
+        Content = _overview;
+        Refresh();
+    }
+
+    public void ShowDetail(string monitorId, long? pollId = null, MonitorDetail.Tab tab = MonitorDetail.Tab.Activity)
+    {
+        Content = _detail;
+        _detail.Show(monitorId, pollId, tab);
+    }
+
+    public void OnPolled(PollRecord poll)
+    {
+        if (ShowingDetail)
+            _detail.OnPolled(poll);
+    }
+
     public void Refresh()
     {
+        if (ShowingDetail)
+            _detail.RefreshHeader();
         RefreshPostern();
         _error.Text = _runtime.Monitors.LoadError is { } loadError ? $"monitors.json couldn't be read, so nothing is running: {loadError}" : "";
         _error.IsVisible = _error.Text.Length > 0;
@@ -141,6 +167,7 @@ internal sealed class MonitorsPage : UserControl
             Spacing = 6,
             Children =
             {
+                Ui.Button("Details", () => ShowDetail(definition.Id), primary: true),
                 Ui.Button("Edit", () => { if (source is not null) Edit(source, definition); }),
                 Ui.Button("Poll now", () => _runtime.Monitors.PollNow(definition.Id)),
                 Ui.Button(definition.Enabled ? "Turn off" : "Turn on", () => Replace(definition, definition with { Enabled = !definition.Enabled })),
@@ -148,7 +175,8 @@ internal sealed class MonitorsPage : UserControl
                 Ui.Button("Remove", () => Remove(definition)),
             },
         };
-        ToolTip.SetTip(buttons.Children[3], "Forget what this monitor has seen: its next poll is a fresh baseline and reports nothing.");
+        ToolTip.SetTip(buttons.Children[0], "Every poll this monitor made, what it remembers, and what it costs.");
+        ToolTip.SetTip(buttons.Children[4], "Forget what this monitor has seen: its next poll is a fresh baseline and reports nothing.");
 
         var body = new StackPanel
         {

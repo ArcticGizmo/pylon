@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Pylon.App.Services;
 using Pylon.Broker;
+using Pylon.Core.Monitors;
 
 namespace Pylon.App.Views;
 
@@ -64,9 +65,22 @@ internal sealed class MainWindow : Window
         Content = grid;
 
         void OnChanged() => Dispatcher.UIThread.Post(_monitors.Refresh);
+        void OnPolled(PollRecord poll) => Dispatcher.UIThread.Post(() => _monitors.OnPolled(poll));
         runtime.Monitors.Changed += OnChanged;
-        Closed += (_, _) => runtime.Monitors.Changed -= OnChanged;
+        runtime.Monitors.Polled += OnPolled;
+        Closed += (_, _) =>
+        {
+            runtime.Monitors.Changed -= OnChanged;
+            runtime.Monitors.Polled -= OnPolled;
+        };
         NavigateTo(page);
+    }
+
+    /// <summary>One monitor's detail, with a poll expanded when one is given (from an event's "Show the poll").</summary>
+    public void ShowMonitor(string monitorId, long? pollId = null, MonitorDetail.Tab tab = MonitorDetail.Tab.Activity)
+    {
+        NavigateTo(MonitorsKey);
+        _monitors.ShowDetail(monitorId, pollId, tab);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -93,7 +107,7 @@ internal sealed class MainWindow : Window
             item.BorderBrush = selected ? Ui.Accent : Brushes.Transparent;
         }
         if (key == MonitorsKey)
-            _monitors.Refresh();
+            _monitors.ShowList();
     }
 
     void AddPage(StackPanel nav, string key, string title, Control page)

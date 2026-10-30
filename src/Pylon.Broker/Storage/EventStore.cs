@@ -16,6 +16,17 @@ public sealed record Retention
 
     /// <summary>One payload bigger than this is cut, so a huge poll response can't push everything else out.</summary>
     public int MaxPayloadSize { get; init; } = 512 * 1024;
+
+    /// <summary>The poll journal: every poll's calls and observations, for the monitor detail page.</summary>
+    public TimeSpan PollAge { get; init; } = TimeSpan.FromDays(3);
+
+    /// <summary>
+    /// Response bodies are most of the journal's size (a busy repository's pulls list is hundreds of KB), so they get
+    /// their own, shorter budget: the most recent ones, oldest pruned first.
+    /// </summary>
+    public TimeSpan BodyAge { get; init; } = TimeSpan.FromDays(1);
+
+    public long MaxBodyBytes { get; init; } = 100L * 1024 * 1024;
 }
 
 /// <summary>

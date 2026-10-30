@@ -34,6 +34,7 @@ MonitorDefinition work = new()
 {
     Id = "work-prs", Name = "Work PRs", Source = "github", Connection = "github-work", Icon = Icons.PullRequest, Accent = "#60A5FA",
     Targets = ["example-org/api", "example-org/web"], Events = [.. GitHubEvents.All.Select(e => e.Name)], PollSeconds = 60,
+    Options = new Dictionary<string, bool> { [GitHubEvents.CheckAssumptions] = true },
 };
 MonitorDefinition personal = new()
 {
@@ -57,6 +58,12 @@ await session.Dispatch(() =>
 
     Save(new MainWindow(runtime, new UiSettings(), () => { }), "monitors", height: 980);
     Save(new MainWindow(runtime, new UiSettings(), () => { }, MainWindow.GeneralKey), "general");
+
+    // The poll that found the approval, expanded: it also carries the A1 warning from the quirk switched on above.
+    var approvalPoll = runtime.Journal.PollFor(approved.Sequence);
+    Detail(window => window.ShowMonitor(work.Id, approvalPoll), "monitor-activity");
+    Detail(window => window.ShowMonitor(work.Id, tab: MonitorDetail.Tab.Watching), "monitor-watching");
+    Detail(window => window.ShowMonitor(work.Id, tab: MonitorDetail.Tab.Budget), "monitor-budget");
     Save(new MonitorEditor(new GitHubSource(), work, [work, personal, beat]), "monitor-editor");
 
     var log = new Pylon.TestBench.BenchLog();
@@ -87,17 +94,32 @@ async Task Generate()
     var tool = github.Open("example-user/tool", "Speed up config loading", "example-user");
     var workMonitor = new GitHubMonitor(new MonitorContext(work, new HttpClient { BaseAddress = fakeAddress }, runtime.Store.StateFor(work.Id), TimeProvider.System));
     var toolMonitor = new GitHubMonitor(new MonitorContext(personal, new HttpClient { BaseAddress = fakeAddress }, runtime.Store.StateFor(personal.Id), TimeProvider.System));
-    await workMonitor.PollAsync(CancellationToken.None);
-    await toolMonitor.PollAsync(CancellationToken.None);
+    var monitors = new[] { (work, workMonitor), (personal, toolMonitor) };
 
+    // What MonitorHost does after each poll, so the detail page has a history to show.
     async Task Poll()
     {
-        foreach (var monitor in new[] { workMonitor, toolMonitor })
+        foreach (var (definition, monitor) in monitors)
         {
+            var started = DateTimeOffset.UtcNow;
             var result = await monitor.PollAsync(CancellationToken.None);
-            runtime.Hub.Publish(result.Events);
+            var published = runtime.Hub.Publish(result.Events);
+            runtime.Journal.Add(new PollRecord
+            {
+                MonitorId = definition.Id,
+                StartedAt = started,
+                Milliseconds = (long)(DateTimeOffset.UtcNow - started).TotalMilliseconds,
+                Requests = result.Requests,
+                NotModified = result.NotModified,
+                Calls = result.Calls,
+                Observations = result.Observations,
+                Notes = result.Notes,
+                Sequences = [.. published.Select(r => r.Sequence)],
+            });
         }
     }
+
+    await Poll();
 
     var fresh = github.Open("example-org/web", "Fix flaky login test", "dev-three");
     await Poll();
@@ -112,8 +134,11 @@ async Task Generate()
     github.Push(api);
     github.SetChecks(api, "passing");
     await Poll();
+    github.ReviewsBumpUpdatedAt = false;
     github.Review(api, "dev-two", "APPROVED");
     github.Review(tool, "example-friend", "APPROVED");
+    github.ReviewsBumpUpdatedAt = true;
+    await Poll();
     await Poll();
     github.Merge(api, "dev-one");
     github.Merge(tool, "example-user");
@@ -123,6 +148,13 @@ async Task Generate()
     github.Changed += hook => runtime.Hub.Publish(WebhookNormaliser.Normalise(hook.Event, hook.Body, EventVia.Test));
     github.Review(fresh, "dev-one", "COMMENTED");
     github.SetChecks(fresh, "pending");
+}
+
+void Detail(Action<MainWindow> open, string name)
+{
+    var window = new MainWindow(runtime, new UiSettings(), () => { });
+    open(window);
+    Save(window, name, height: 1100);
 }
 
 void Save(Window window, string name, double? height = null)

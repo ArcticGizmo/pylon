@@ -35,17 +35,39 @@ public sealed record FakeWebhook(string Event, string Body, string Description);
 
 /// <summary>
 /// The fake's pull requests. Every change bumps <c>updated_at</c> except checks, which is the assumption the poll
-/// strategy makes about real GitHub (S1 checks it). Thread-safe: the test bench's UI and its HTTP server both use it.
+/// strategy makes about real GitHub (S1 checks it). The quirk switches make it break those assumptions on purpose, so
+/// the monitor's assumption checks can be seen working. Thread-safe: the test bench's UI and its HTTP server both use it.
 /// </summary>
 public sealed class FakeGitHubState
 {
     readonly Lock _gate = new();
     readonly List<FakePullRequest> _pulls = [];
+    readonly Dictionary<string, string> _listETags = new(StringComparer.OrdinalIgnoreCase);
     readonly TimeProvider _time;
     long _nextReviewId = 9000;
     int _remaining = 5000;
 
     public FakeGitHubState(TimeProvider? time = null) => _time = time ?? TimeProvider.System;
+
+    /// <summary>Off breaks A1: a submitted review leaves <c>updated_at</c> where it was.</summary>
+    public bool ReviewsBumpUpdatedAt { get; set; } = true;
+
+    /// <summary>On breaks A2 (harmlessly): a check finishing moves <c>updated_at</c>.</summary>
+    public bool ChecksBumpUpdatedAt { get; set; }
+
+    /// <summary>On breaks A4: the pulls list keeps the ETag it last served, so it answers 304 even after a change.</summary>
+    public bool StaleListETags { get; set; }
+
+    /// <summary>The ETag to serve for a pulls list: its real one, unless stale ETags are on and one was served before.</summary>
+    internal string ListETag(string path, string body)
+    {
+        lock (_gate)
+        {
+            if (StaleListETags && _listETags.TryGetValue(path, out var stale))
+                return stale;
+            return _listETags[path] = ETag(body);
+        }
+    }
 
     /// <summary>Raised after every change with the webhook GitHub would have sent for it.</summary>
     public event Action<FakeWebhook>? Changed;
@@ -125,7 +147,9 @@ public sealed class FakeGitHubState
         {
             review = new FakeReview(Interlocked.Increment(ref _nextReviewId), author, state, _time.GetUtcNow());
             p.Reviews.Add(review);
-            p.RequestedReviewers.Remove(author);
+            // Removing the reviewer would show in the list; with A1 broken the review has to be invisible there.
+            if (ReviewsBumpUpdatedAt)
+                p.RequestedReviewers.Remove(author);
         }, "pull_request_review", p =>
         {
             var body = PullRequestEvent(p, "submitted", author);
@@ -137,7 +161,7 @@ public sealed class FakeGitHubState
                 ["submitted_at"] = review.SubmittedAt.ToString("O"),
             };
             return body;
-        }, $"{state.ToLowerInvariant()} by {author}");
+        }, $"{state.ToLowerInvariant()} by {author}", bump: ReviewsBumpUpdatedAt);
     }
 
     /// <summary>A new commit: new head SHA, and checks start again.</summary>
@@ -148,11 +172,15 @@ public sealed class FakeGitHubState
             p.Checks = "pending";
         }, "pull_request", p => PullRequestEvent(p, "synchronize", p.Author), "new commit pushed");
 
-    /// <summary>Doesn't bump <c>updated_at</c>: real GitHub is assumed not to either (S1 assumption A2).</summary>
+    /// <summary>Doesn't bump <c>updated_at</c> unless <see cref="ChecksBumpUpdatedAt"/>: real GitHub is assumed not to (A2).</summary>
     public void SetChecks(FakePullRequest pr, string checks)
     {
         lock (_gate)
+        {
             pr.Checks = checks;
+            if (ChecksBumpUpdatedAt)
+                pr.UpdatedAt = _time.GetUtcNow();
+        }
         var status = checks == "pending" ? "in_progress" : "completed";
         var body = new JsonObject
         {
@@ -177,12 +205,13 @@ public sealed class FakeGitHubState
     public void Close(FakePullRequest pr, string by) =>
         Mutate(pr, p => p.State = "closed", "pull_request", p => PullRequestEvent(p, "closed", by), $"closed by {by}");
 
-    void Mutate(FakePullRequest pr, Action<FakePullRequest> change, string githubEvent, Func<FakePullRequest, JsonObject> body, string description)
+    void Mutate(FakePullRequest pr, Action<FakePullRequest> change, string githubEvent, Func<FakePullRequest, JsonObject> body, string description, bool bump = true)
     {
         lock (_gate)
         {
             change(pr);
-            pr.UpdatedAt = _time.GetUtcNow();
+            if (bump)
+                pr.UpdatedAt = _time.GetUtcNow();
         }
         Raise(githubEvent, body(pr), $"{pr.Repo}#{pr.Number} {description}");
     }

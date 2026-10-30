@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Pylon.Core.Monitors;
 
@@ -53,6 +54,44 @@ public sealed partial class GitHubSource : ISource
     }
 
     public IMonitorRunner Create(MonitorContext context) => new GitHubMonitor(context);
+
+    /// <summary>Every pull request a monitor has a fingerprint for, open ones first, most recently updated first.</summary>
+    public IReadOnlyList<WatchedItem> Watched(IMonitorState state)
+    {
+        var pulls = new List<PullRequestSnapshot>();
+        foreach (var key in state.Keys().Where(k => k.StartsWith("pr:", StringComparison.Ordinal)))
+        {
+            if (state.Get(key) is not { } stored)
+                continue;
+            try
+            {
+                if (JsonSerializer.Deserialize<PullRequestSnapshot>(stored, Json) is { } pr)
+                    pulls.Add(pr);
+            }
+            catch (JsonException)
+            {
+                // A fingerprint written by an older build: the next poll replaces it.
+            }
+        }
+        return
+        [
+            .. pulls
+                .OrderBy(p => p.State == PrState.Open ? 0 : 1)
+                .ThenByDescending(p => p.UpdatedAt)
+                .Select(p => new WatchedItem(p.Reference, p.Title, p.Url.Length > 0 ? p.Url : null,
+                [
+                    ("state", p.Draft ? $"{p.State} (draft)" : p.State),
+                    ("author", p.AuthorIsBot ? $"{p.Author} (bot)" : p.Author),
+                    ("updatedAt", GitHubMonitor.Time(p.UpdatedAt)),
+                    ("head", GitHubMonitor.Short(p.HeadSha)),
+                    ("requested", p.RequestedReviewers.Count == 0 ? "nobody" : string.Join(", ", p.RequestedReviewers)),
+                    ("reviews", p.Reviews is null ? "not fetched yet" : GitHubMonitor.Reviews(p.Reviews)),
+                    ("checks", p.SettledChecks is { } settled && settled != p.Checks ? $"{p.Checks} (last reported {settled})" : p.Checks),
+                ])),
+        ];
+    }
+
+    static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     [GeneratedRegex("^[a-z0-9][a-z0-9-]*$")]
     private static partial Regex ConnectionPattern();

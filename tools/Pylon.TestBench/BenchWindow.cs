@@ -158,6 +158,19 @@ internal sealed class BenchWindow : Window
         }
 
         var play = Button("Play a PR's whole life", () => _ = PlayLife());
+        var quirks = new StackPanel { Spacing = 2 };
+        foreach (var (label, get, set) in new (string, Func<bool>, Action<bool>)[]
+        {
+            ("Reviews don't move updated_at (breaks A1)", () => !_state.ReviewsBumpUpdatedAt, v => _state.ReviewsBumpUpdatedAt = !v),
+            ("Checks move updated_at (breaks A2)", () => _state.ChecksBumpUpdatedAt, v => _state.ChecksBumpUpdatedAt = v),
+            ("The pulls list keeps a stale ETag (breaks A4)", () => _state.StaleListETags, v => _state.StaleListETags = v),
+        })
+        {
+            var box = new CheckBox { Content = label, IsChecked = get() };
+            box.IsCheckedChanged += (_, _) => set(box.IsChecked == true);
+            quirks.Children.Add(box);
+        }
+
         return new StackPanel
         {
             Spacing = 10,
@@ -177,6 +190,7 @@ internal sealed class BenchWindow : Window
                 actions,
                 _forward,
                 new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { play, Text("seconds between steps", Muted, 12), _delay } },
+                Field("Quirks: break the poll strategy's assumptions (a monitor with 'check assumptions' on flags each one)", quirks),
             },
         };
     }

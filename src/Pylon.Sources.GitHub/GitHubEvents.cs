@@ -16,6 +16,7 @@ public static class GitHubEvents
 
     public const string IncludeDrafts = "includeDrafts";
     public const string IgnoreBots = "ignoreBots";
+    public const string CheckAssumptions = "checkAssumptions";
 
     public static readonly IReadOnlyList<SourceEvent> All =
     [

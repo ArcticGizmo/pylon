@@ -29,6 +29,8 @@ public sealed class HeartbeatSource : ISource
 
     public IMonitorRunner Create(MonitorContext context) => new Runner(context);
 
+    public IReadOnlyList<WatchedItem> Watched(IMonitorState state) => [new("beats", null, null, [("count", state.Get("count") ?? "0")])];
+
     sealed class Runner(MonitorContext context) : IMonitorRunner
     {
         public Task<PollResult> PollAsync(CancellationToken cancellationToken)

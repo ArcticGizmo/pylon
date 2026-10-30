@@ -8,8 +8,9 @@ Status: walking skeleton. See [`docs/implementation-plan.md`](docs/implementatio
 
 - **Monitors.** A monitor polls one source and turns what changed into events. The GitHub monitor watches a list of repositories through a Postern connection and reports, each switchable: PR opened, ready for review, review requested, reviewed, approved, checks (started, passing, failing), merged and closed. Bots and drafts can be kept quiet.
 - **The stream widget.** Off by default; the tray icon toggles it. A topmost window that never steals focus, stays out of the taskbar and Alt+Tab, drags anywhere, resizes from any edge, snaps to screen edges, and switches between compact, expanded and full screen. Each record shows the monitor's icon and colour, a one-line summary and a status dot. Click one to see what Pylon observed: for a poll, the pull request before and after and the requests made; for a webhook, the body.
+- **The monitor detail page.** "Details" on a monitor shows every poll it made (each request with its status, ETag and rate-limit cost; what changed on each pull request; what was reported, and what was kept quiet and why), what it remembers about each pull request, and what its polling costs per hour. "Check assumptions" on a GitHub monitor makes it flag anything the poll strategy would have missed. An event's "Show the poll" jumps straight to the poll that produced it.
 - **Subscribers** get hint events over `\\.\pipe\pylon` as server-sent events, with `since=` replay and `resync` when a gap can't be replayed. `Pylon.Client` handles the consumer contract for .NET apps.
-- **The test bench** (`run bench`) is a fake GitHub you drive with buttons, plus a payload editor that sends webhooks or raw events straight into a dev Pylon.
+- **The test bench** (`run bench`) is a fake GitHub you drive with buttons (with switches that make it break the poll strategy's assumptions), plus a payload editor that sends webhooks or raw events straight into a dev Pylon.
 
 ## Development
 
@@ -40,8 +41,8 @@ Debug builds run as **Pylon (Dev)**: pipe `pylon-dev`, data in `%LOCALAPPDATA%\P
 |---|---|
 | `src/Pylon.Core` | Event contract, topic and type patterns, monitor model, stream filter. No Windows/UI deps |
 | `src/Pylon.Sources.GitHub` | GitHub poll strategy, PR snapshots and the rules that turn two snapshots into events, webhook normaliser |
-| `src/Pylon.Broker` | Named-pipe host, SSE, SQLite log and observation store, monitor scheduler, Postern gateway |
-| `src/Pylon.App` | `Pylon.exe`: tray, stream widget, payload view, Monitors and General pages |
+| `src/Pylon.Broker` | Named-pipe host, SSE, SQLite log, observation store and poll journal, monitor scheduler, Postern gateway |
+| `src/Pylon.App` | `Pylon.exe`: tray, stream widget, payload view, Monitors page and monitor detail, General page |
 | `src/Pylon.Client` | What subscribing apps reference |
 | `src/Pylon.Cli` | `pylon-cli`: status, tail, emit |
 | `tools/Pylon.FakeGitHub` | Stateful fake of the GitHub REST slice Pylon uses, with ETags, 304s and webhook bodies |

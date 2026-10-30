@@ -36,7 +36,7 @@ public class GitHubMonitorTests : IAsyncLifetime
         _dir.Dispose();
     }
 
-    GitHubMonitor Monitor(IReadOnlyList<string>? events = null, bool drafts = false) => new(new MonitorContext(
+    GitHubMonitor Monitor(IReadOnlyList<string>? events = null, bool drafts = false, bool checkAssumptions = false) => new(new MonitorContext(
         new MonitorDefinition
         {
             Id = "work",
@@ -45,9 +45,99 @@ public class GitHubMonitorTests : IAsyncLifetime
             Connection = "github-fake",
             Targets = ["example/app"],
             Events = events ?? [.. GitHubEvents.All.Select(e => e.Name)],
-            Options = new Dictionary<string, bool> { [GitHubEvents.IncludeDrafts] = drafts },
+            Options = new Dictionary<string, bool> { [GitHubEvents.IncludeDrafts] = drafts, [GitHubEvents.CheckAssumptions] = checkAssumptions },
         },
         _http!, _store!.StateFor("work"), TimeProvider.System));
+
+    [Fact]
+    public async Task CallsAreTracedWithETagsAndRateCost()
+    {
+        var pr = _github.Open("example/app", "Feature", "author-a");
+        _github.SetChecks(pr, "passing");
+        var monitor = Monitor();
+        var first = await monitor.PollAsync(CancellationToken.None);
+        Assert.All(first.Calls, c => Assert.Equal(200, c.Status));
+        Assert.All(first.Calls, c => Assert.NotNull(c.ETag));
+        Assert.All(first.Calls, c => Assert.NotNull(c.Body));
+        Assert.All(first.Calls.Skip(1), c => Assert.Equal(1, c.RateCost));
+
+        var quiet = await monitor.PollAsync(CancellationToken.None);
+        Assert.All(quiet.Calls, c => Assert.True(c.NotModified));
+        Assert.All(quiet.Calls, c => Assert.Null(c.Body));
+        Assert.All(quiet.Calls.Skip(1), c => Assert.Equal(0, c.RateCost));
+        Assert.Empty(quiet.Observations);
+    }
+
+    [Fact]
+    public async Task ObservationsShowWhatMovedAndWhatWasKeptQuiet()
+    {
+        var pr = _github.Open("example/app", "Feature", "author-a");
+        var monitor = Monitor(events: [GitHubEvents.Merged]);
+        var baseline = await monitor.PollAsync(CancellationToken.None);
+        Assert.Contains("Baseline", Assert.Single(baseline.Notes).Text);
+        Assert.Empty(baseline.Observations);
+
+        _github.RequestReview(pr, "reviewer-b");
+        var poll = await monitor.PollAsync(CancellationToken.None);
+        var seen = Assert.Single(poll.Observations);
+        Assert.Equal("example/app#101", seen.Resource);
+        Assert.Contains(seen.Changes, c => c.Field == "requestedReviewers" && c.After == "reviewer-b");
+        Assert.Contains(seen.Changes, c => c.Field == "updatedAt");
+        var quiet = Assert.Single(seen.Quiet);
+        Assert.Equal("github.pr.review_requested", quiet.Event);
+        Assert.Contains("switched off", quiet.Reason);
+        Assert.Empty(seen.Reported);
+    }
+
+    [Fact]
+    public async Task AssumptionChecksStayQuietWhenTheyHold()
+    {
+        var pr = _github.Open("example/app", "Feature", "author-a");
+        var monitor = Monitor(checkAssumptions: true);
+        await monitor.PollAsync(CancellationToken.None);
+        _github.Review(pr, "reviewer-b", "APPROVED");
+        var poll = await monitor.PollAsync(CancellationToken.None);
+        Assert.Equal(["github.pr.approved"], poll.Events.Select(e => e.Type));
+        Assert.DoesNotContain(poll.Notes.Concat(poll.Observations.SelectMany(o => o.Notes)), n => n.Level == NoteLevel.Warning);
+        Assert.Contains(poll.Observations.SelectMany(o => o.Notes), n => n.Assumption == "A1" && n.Level == NoteLevel.Info);
+    }
+
+    [Fact]
+    public async Task AReviewThatDoesNotMoveUpdatedAtIsMissedWithoutChecksAndFlaggedWithThem()
+    {
+        _github.ReviewsBumpUpdatedAt = false;
+        var pr = _github.Open("example/app", "Feature", "author-a");
+
+        var plain = Monitor();
+        await plain.PollAsync(CancellationToken.None);
+        _github.Review(pr, "reviewer-b", "APPROVED");
+        Assert.Empty((await plain.PollAsync(CancellationToken.None)).Events);
+
+        _store!.ClearState("work");
+        var checking = Monitor(checkAssumptions: true);
+        await checking.PollAsync(CancellationToken.None);
+        _github.Review(pr, "reviewer-c", "APPROVED");
+        var poll = await checking.PollAsync(CancellationToken.None);
+        Assert.Equal(["github.pr.approved"], poll.Events.Select(e => e.Type));
+        var note = Assert.Single(poll.Observations.SelectMany(o => o.Notes), n => n.Level == NoteLevel.Warning);
+        Assert.Equal("A1", note.Assumption);
+    }
+
+    [Fact]
+    public async Task AStaleListETagIsCaughtByTheRefetch()
+    {
+        _github.StaleListETags = true;
+        var monitor = Monitor(checkAssumptions: true);
+        await monitor.PollAsync(CancellationToken.None);
+        _github.Open("example/app", "Feature", "author-a");
+
+        var poll = await monitor.PollAsync(CancellationToken.None);
+        Assert.Equal(["github.pr.opened"], poll.Events.Select(e => e.Type));
+        var note = Assert.Single(poll.Notes);
+        Assert.Equal("A4", note.Assumption);
+        Assert.Equal(NoteLevel.Warning, note.Level);
+        Assert.Contains(poll.Calls, c => c.Purpose is not null && c.Status == 200);
+    }
 
     [Fact]
     public async Task BaselineThenEveryEventType()

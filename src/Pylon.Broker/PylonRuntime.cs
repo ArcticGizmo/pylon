@@ -61,6 +61,7 @@ public sealed class PylonRuntime : IAsyncDisposable
         Options = options;
         Time = overrides.Time ?? TimeProvider.System;
         Store = new EventStore(Path.Combine(options.DataDirectory, "pylon.db"), Time, options.Retention);
+        Journal = new PollJournal(Path.Combine(options.DataDirectory, "pylon.db"), Time, options.Retention);
         Hub = new EventHub(Store);
 
         var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = [], ApplicationName = "Pylon" });
@@ -80,7 +81,7 @@ public sealed class PylonRuntime : IAsyncDisposable
 
         if (overrides.MonitorHttp is null)
             Postern = new PosternGateway(new PosternOptions { AppName = options.PosternAppName, PipeName = options.PosternPipeName });
-        Monitors = new MonitorHost(overrides.Sources ?? [new GitHubSource(), new HeartbeatSource()], Hub, Postern, overrides.MonitorHttp,
+        Monitors = new MonitorHost(overrides.Sources ?? [new GitHubSource(), new HeartbeatSource()], Hub, Journal, Postern, overrides.MonitorHttp,
             options.DataDirectory, Time, _app.Logger);
 
         ControlEndpoints.Map(_app, this);
@@ -91,6 +92,7 @@ public sealed class PylonRuntime : IAsyncDisposable
     public PylonOptions Options { get; }
     public TimeProvider Time { get; }
     public EventStore Store { get; }
+    public PollJournal Journal { get; }
     public EventHub Hub { get; }
     public MonitorHost Monitors { get; }
 
@@ -149,8 +151,10 @@ public sealed class PylonRuntime : IAsyncDisposable
             try
             {
                 var (events, payloads) = Store.Prune();
-                if (events + payloads > 0)
-                    _app.Logger.LogInformation("Pruned {Events} event(s) and {Payloads} payload(s)", events, payloads);
+                var (polls, bodies) = Journal.Prune();
+                if (events + payloads + polls + bodies > 0)
+                    _app.Logger.LogInformation("Pruned {Events} event(s), {Payloads} payload(s), {Polls} poll(s) and {Bodies} response bod(ies)",
+                        events, payloads, polls, bodies);
                 await Task.Delay(TimeSpan.FromHours(1), cancellationToken);
             }
             catch (OperationCanceledException)

@@ -30,7 +30,8 @@ internal sealed class PayloadWindow : Window
     readonly string _payloadText;
     readonly string _eventJson;
 
-    public PayloadWindow(EventRecord record, Payload? payload, MonitorDefinition? monitor)
+    /// <param name="showPoll">Opens the poll that produced the event in the monitor's detail, when the journal still has it.</param>
+    public PayloadWindow(EventRecord record, Payload? payload, MonitorDefinition? monitor, Action? showPoll = null)
     {
         Title = $"Pylon: event #{record.Sequence}";
         Icon = TrayArt.WindowIcon();
@@ -147,11 +148,17 @@ internal sealed class PayloadWindow : Window
             Margin = new Thickness(0, 10, 0, 0),
             Children =
             {
+                Ui.Button("Show the poll", () =>
+                {
+                    showPoll?.Invoke();
+                    Close();
+                }),
                 Ui.Button("Copy event", () => Copy(_eventJson)),
                 Ui.Button("Copy payload", () => Copy(_payloadText)),
                 Ui.Button("Close", Close, primary: true),
             },
         };
+        buttons.Children[0].IsVisible = showPoll is not null;
 
         Content = new DockPanel
         {

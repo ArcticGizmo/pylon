@@ -153,6 +153,31 @@ public class PullRequestDiffTests
     }
 
     [Fact]
+    public void QuietChangesSayWhy()
+    {
+        static string Reason(PullRequestSnapshot? before, PullRequestSnapshot after, DiffOptions options) =>
+            Assert.Single(PullRequestDiff.Apply(before, after, options).Quiet).Reason;
+
+        Assert.Contains("switched off", Reason(Pr(), Pr(p => p with { State = PrState.Merged }), Options(events: [GitHubEvents.Opened])));
+        Assert.Contains("ignore bots", Reason(null, Pr(p => p with { AuthorIsBot = true }), Options(bots: true)));
+        Assert.Contains("include drafts", Reason(null, Pr(p => p with { Draft = true }), Options(drafts: false)));
+        Assert.Contains("ignore bots", Reason(Pr(), Pr(p => p with { Reviews = [new(9, "copilot[bot]", true, "COMMENTED")] }), Options(bots: true)));
+        Assert.Equal("baseline", Reason(null, Pr(), DiffOptions.Baseline("baseline")));
+
+        var passing = Pr(p => p with { Checks = ChecksState.Passing, SettledChecks = ChecksState.Passing });
+        var (rerunning, _) = PullRequestDiff.Apply(passing, passing with { Checks = ChecksState.Pending }, DiffOptions.Everything);
+        Assert.Contains("already reported", Reason(rerunning, rerunning with { Checks = ChecksState.Passing }, DiffOptions.Everything));
+    }
+
+    [Fact]
+    public void ReportedChangesAreNotAlsoQuiet()
+    {
+        var result = PullRequestDiff.Apply(Pr(), Pr(p => p with { State = PrState.Merged }), DiffOptions.Everything);
+        Assert.Single(result.Changes);
+        Assert.Empty(result.Quiet);
+    }
+
+    [Fact]
     public void SwitchedOffEventsAreNotReportedButStateMovesOn()
     {
         var options = Options(events: [GitHubEvents.Merged]);

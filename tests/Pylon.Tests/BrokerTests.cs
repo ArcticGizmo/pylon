@@ -184,6 +184,42 @@ public class BrokerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task EveryPollIsJournalledWithItsEvents()
+    {
+        var runtime = await Start();
+        var polled = new List<PollRecord>();
+        runtime.Monitors.Polled += p =>
+        {
+            lock (polled)
+                polled.Add(p);
+        };
+        using var reader = await Subscribe(new(["github/**"]));
+        runtime.Monitors.Save([new MonitorDefinition
+        {
+            Id = "work", Name = "Work", Source = GitHubSource.SourceName, Connection = "github-fake",
+            Targets = ["example/app"], Events = [GitHubEvents.Opened], PollSeconds = 300,
+        }]);
+        await Until(() => runtime.Journal.Recent("work", null, 10).Count == 1);
+
+        _github.Open("example/app", "Feature", "author-a");
+        runtime.Monitors.PollNow("work");
+        var e = Assert.Single(await reader.Take(1));
+        await Until(() => runtime.Journal.Recent("work", null, 10).Count == 2);
+
+        var polls = runtime.Journal.Recent("work", null, 10);
+        Assert.Contains("Baseline", Assert.Single(polls[1].Notes).Text);
+        Assert.Equal([e.Sequence], polls[0].Sequences);
+        Assert.Equal(polls[0].Id, runtime.Journal.PollFor(e.Sequence));
+        Assert.Equal("example/app#101", Assert.Single(polls[0].Observations).Resource);
+        await Until(() =>
+        {
+            lock (polled)
+                return polled.Select(p => p.Id).Order().SequenceEqual(polls.Select(p => p.Id).Order());
+        });
+        Assert.Single(runtime.Monitors.Watched("work"));
+    }
+
+    [Fact]
     public async Task InvalidMonitorsSayWhy()
     {
         var runtime = await Start();

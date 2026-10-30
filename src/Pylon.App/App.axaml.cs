@@ -157,7 +157,7 @@ public partial class App : Application
             existing.Activate();
             return;
         }
-        var window = new StreamWindow(_runtime, _settings);
+        var window = new StreamWindow(_runtime, _settings, ShowPoll);
         _stream = window;
         _settings.StreamVisible = true;
         _settings.Save();
@@ -175,6 +175,12 @@ public partial class App : Application
         window.Show();
         _unseen = 0;
         UpdateTray();
+    }
+
+    void ShowPoll(string monitorId, long pollId)
+    {
+        Open(MainWindow.MonitorsKey);
+        _main?.ShowMonitor(monitorId, pollId);
     }
 
     void Open(string page)

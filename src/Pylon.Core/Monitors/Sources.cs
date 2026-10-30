@@ -14,9 +14,13 @@ public interface IMonitorState
 /// <summary>A change a source can report, shown as a checkbox on the Monitors page.</summary>
 public sealed record SourceEvent(string Name, string Label, string Description);
 
-/// <summary>What the scheduler needs from one poll, for the Monitors page and backoff.</summary>
+/// <summary>What the scheduler needs from one poll, for the Monitors page and backoff, plus what the journal keeps.</summary>
 public sealed record PollResult(int Requests, int NotModified, IReadOnlyList<EventDraft> Events, string? Error = null, TimeSpan? RetryAfter = null)
 {
+    public IReadOnlyList<RequestTrace> Calls { get; init; } = [];
+    public IReadOnlyList<Observation> Observations { get; init; } = [];
+    public IReadOnlyList<ObservationNote> Notes { get; init; } = [];
+
     public static PollResult Failed(string error, int requests = 0, TimeSpan? retryAfter = null) => new(requests, 0, [], error, retryAfter);
 }
 
@@ -51,4 +55,7 @@ public interface ISource
     IReadOnlyList<string> ScopesFor(MonitorDefinition monitor);
 
     IMonitorRunner Create(MonitorContext context);
+
+    /// <summary>What a monitor of this source is keeping track of, read back from its stored state.</summary>
+    IReadOnlyList<WatchedItem> Watched(IMonitorState state) => [];
 }
