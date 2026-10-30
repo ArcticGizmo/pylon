@@ -10,6 +10,8 @@ Updated after the unattended run of 2026-10-27/28 (branch `overnight/skeleton`, 
 |---|---|
 | D decisions | ✅ D1–D7 taken as recommended (D4: project reference through `PosternRoot`); D8 (REST through Postern, no `gh`) agreed 2026-10-30 |
 | S1 GitHub change detection | ⏳ **Needs you.** No spike: it's measured in the app itself (see "Measuring S1 in the app" below). The starting hypothesis is built and swappable; the assumptions it rests on are listed under "S1 assumptions" below |
+| Webhooks belong to monitors | ✅ Added 2026-10-30. A delivery goes to every enabled monitor watching its repository, with that monitor's switches, and shows in its Activity as "received". The same change arriving both ways within 10 minutes is reported once. Deliveries no monitor watches are listed on the Monitors page |
+| `testbench` connection | ✅ Added 2026-10-30. Dev builds only: a monitor on it polls the test bench directly, with no Postern setup. The Postern route is unchanged and still proved by `tools/Pylon.E2E` |
 | Monitor detail page | ✅ Added 2026-10-30. Activity (every poll: requests, ETags, rate cost, what changed per PR, what was reported or kept quiet and why), Watching (each monitor's stored fingerprints) and Budget (requests per hour, 304 share, A5 evidence). Backed by a poll journal in `pylon.db` |
 | S2 Event delivery over the pipe | ✅ Folded into Phase 1 and proved by integration tests (live, replay, pruned gap, unknown sequence, slow subscriber, stop ends streams). Node subscriber not tried |
 | S3 Floating stream widget | ✅ Folded into Phase 2. Proved offscreen (snapshots) and live (Pylon.exe stayed responsive through 3,000 events at ~1,000/s with the widget open). **Needs you** for feel: focus, drag, resize, snap, DPI across monitors |
@@ -39,6 +41,8 @@ Updated after the unattended run of 2026-10-27/28 (branch `overnight/skeleton`, 
 - Payloads are cut at 512 KB each and kept 7 days or 200 MB, whichever comes first; events 30 days or 100,000.
 - The poll journal keeps polls for 3 days. Response bodies (most of its size) are kept for 1 day or 100 MB, newest first, so on a busy setup only the most recent bodies are there to open.
 - Dev ingest (`/_pylon/dev/*`) is always on in Debug builds and off in Release unless `--dev-ingest` is passed.
+- A monitor is "what to watch"; polling and webhooks are two ways of hearing about it (agreed 2026-10-30). A webhook for a repository no enabled monitor watches reports nothing. A raw event (`/_pylon/dev/emit`) still goes straight in without a monitor.
+- An event from one path is paired with the same change (topic, type and hint) arriving the other way within 10 minutes, and the second is kept quiet with the first's sequence as the reason. A pairing is used once, so checks failing then passing again still report.
 
 ### S1 assumptions (confirm with real repos, with you there)
 

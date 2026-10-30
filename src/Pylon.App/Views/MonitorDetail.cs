@@ -63,7 +63,7 @@ internal sealed class MonitorDetail : UserControl
             Children =
             {
                 Ui.Right(_hideQuiet),
-                Ui.Text("Newest first. Click a poll to see each request and what it noticed about each pull request, including changes kept quiet and why.", Ui.Muted, 12),
+                Ui.Text("Every poll this monitor made, and every webhook it was sent, newest first. Click one to see the requests (or the delivery), what changed on each pull request, and what was reported or kept quiet and why.", Ui.Muted, 12),
             },
         });
         _activity.Children.Add(_polls);
@@ -213,7 +213,9 @@ internal sealed class MonitorDetail : UserControl
             },
         });
         if (definition.Source == GitHubSource.SourceName)
-            _header.Children.Add(Ui.Text($"{string.Join(", ", definition.Targets)} via {definition.Connection}", Ui.Foreground, 12.5));
+            _header.Children.Add(Ui.Text(definition.Connection == MonitorHost.TestBenchConnection
+                ? $"{string.Join(", ", definition.Targets)} on the test bench (polled directly, no Postern)"
+                : $"{string.Join(", ", definition.Targets)} via {definition.Connection}", Ui.Foreground, 12.5));
         if (checking)
             _header.Children.Add(Ui.Text("Checking assumptions: reviews are fetched for every open PR and a 304 on the pulls list is fetched again, so this monitor makes more requests than usual.", Ui.Warning, 12));
         if (status?.Detail is { Length: > 0 } detail && state is MonitorState.Error or MonitorState.Invalid or MonitorState.WaitingForPostern)
@@ -246,7 +248,7 @@ internal sealed class MonitorDetail : UserControl
     // ── Activity ────────────────────────────────────────────────────────────────────────────────
 
     static bool IsQuiet(PollRecord poll) =>
-        poll.Outcome == PollOutcome.Ok && poll.Observations.Count == 0 && poll.Notes.Count == 0 && poll.Sequences.Count == 0;
+        poll.Kind == PollKind.Poll && poll.Outcome == PollOutcome.Ok && poll.Observations.Count == 0 && poll.Notes.Count == 0 && poll.Sequences.Count == 0;
 
     void RenderPolls()
     {
@@ -271,13 +273,16 @@ internal sealed class MonitorDetail : UserControl
         var expanded = _expanded.Contains(poll.Id);
         var line = new DockPanel();
         var chips = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+        if (poll.Kind == PollKind.Received)
+            chips.Children.Add(Chip("webhook", Ui.Merged));
         if (poll.Sequences.Count > 0)
             chips.Children.Add(Chip($"{poll.Sequences.Count} event(s)", Ui.Accent));
         if (poll.HasWarnings)
             chips.Children.Add(Chip("assumption broken", Ui.Warning));
         if (poll.Outcome != PollOutcome.Ok)
             chips.Children.Add(Chip(poll.Outcome == PollOutcome.Throttled ? "throttled" : "error", poll.Outcome == PollOutcome.Throttled ? Ui.Warning : Ui.Danger));
-        chips.Children.Add(Ui.Text($"{poll.Milliseconds:N0} ms", Ui.Muted, 11.5));
+        if (poll.Kind == PollKind.Poll)
+            chips.Children.Add(Ui.Text($"{poll.Milliseconds:N0} ms", Ui.Muted, 11.5));
         if (poll.RateLimit?.Remaining is { } left)
             chips.Children.Add(Ui.Text($"{left:N0} left", Ui.Muted, 11.5));
         line.Children.Add(Ui.Right(chips));
@@ -323,6 +328,15 @@ internal sealed class MonitorDetail : UserControl
 
     static string Headline(PollRecord poll)
     {
+        if (poll.Kind == PollKind.Received)
+        {
+            var reported = poll.Observations.Sum(o => o.Reported.Count);
+            var quiet = poll.Observations.Sum(o => o.Quiet.Count);
+            var outcome = reported == 0 && quiet == 0 ? (poll.Notes.FirstOrDefault()?.Text ?? "nothing Pylon reports")
+                : quiet == 0 ? $"{reported} reported"
+                : $"{reported} reported, {quiet} kept quiet";
+            return $"received {poll.Received} · {outcome}";
+        }
         if (poll.Outcome != PollOutcome.Ok && poll.Requests == 0)
             return poll.Error ?? "Failed.";
         var parts = new List<string> { $"{poll.Requests} request(s)" };
@@ -385,7 +399,7 @@ internal sealed class MonitorDetail : UserControl
             var calls = new StackPanel { Spacing = 6 };
             for (var i = 0; i < poll.Calls.Count; i++)
                 calls.Children.Add(CallView(poll, i, bodies.Contains(i)));
-            detail.Children.Add(Ui.Field("Requests", calls));
+            detail.Children.Add(Ui.Field(poll.Kind == PollKind.Received ? "Delivery" : "Requests", calls));
         }
         return detail;
     }

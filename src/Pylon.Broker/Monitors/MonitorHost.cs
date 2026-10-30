@@ -32,10 +32,22 @@ public sealed class MonitorHost : IAsyncDisposable
     /// <summary>Errors back off by doubling up to this.</summary>
     public static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
 
+    /// <summary>The connection name that polls the test bench directly instead of going through Postern (dev only).</summary>
+    public const string TestBenchConnection = "testbench";
+
+    /// <summary>
+    /// How long an event from one path waits to be paired with the same change arriving the other way (a webhook,
+    /// then the poll that finds it, or the reverse), so it's reported once.
+    /// </summary>
+    public static readonly TimeSpan PairingWindow = TimeSpan.FromMinutes(10);
+
     readonly EventHub _hub;
     readonly PollJournal _journal;
     readonly PosternGateway? _postern;
     readonly Func<string, HttpClient>? _httpOverride;
+    readonly Uri? _testBench;
+    readonly Lock _pairing = new();
+    readonly Dictionary<string, Dictionary<string, Reported>> _reported = new(StringComparer.Ordinal);
     readonly string _dataDirectory;
     readonly TimeProvider _time;
     readonly ILogger _log;
@@ -47,13 +59,14 @@ public sealed class MonitorHost : IAsyncDisposable
     Task? _posternTask;
 
     public MonitorHost(IEnumerable<ISource> sources, EventHub hub, PollJournal journal, PosternGateway? postern, Func<string, HttpClient>? httpOverride,
-        string dataDirectory, TimeProvider time, ILogger log)
+        Uri? testBench, string dataDirectory, TimeProvider time, ILogger log)
     {
         _sources = sources.ToDictionary(s => s.Name, StringComparer.Ordinal);
         _hub = hub;
         _journal = journal;
         _postern = postern;
         _httpOverride = httpOverride;
+        _testBench = testBench;
         _dataDirectory = dataDirectory;
         _time = time;
         _log = log;
@@ -81,6 +94,9 @@ public sealed class MonitorHost : IAsyncDisposable
     public event Action<PollRecord>? Polled;
 
     public PollJournal Journal => _journal;
+
+    /// <summary>Whether monitors can use the <see cref="TestBenchConnection"/> in this run.</summary>
+    public bool TestBenchAvailable => _testBench is not null;
 
     /// <summary>What a monitor is keeping track of, from its stored fingerprints.</summary>
     public IReadOnlyList<WatchedItem> Watched(string id) =>
@@ -151,7 +167,7 @@ public sealed class MonitorHost : IAsyncDisposable
     public IReadOnlyList<string> WantedScopes() =>
     [
         .. Definitions
-            .Where(d => d.Enabled && _sources.TryGetValue(d.Source, out var s) && s.UsesPostern && s.Validate(d).Count == 0)
+            .Where(d => d.Enabled && d.Connection != TestBenchConnection && _sources.TryGetValue(d.Source, out var s) && s.UsesPostern && s.Validate(d).Count == 0)
             .SelectMany(d => _sources[d.Source].ScopesFor(d))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.Ordinal),
@@ -161,6 +177,139 @@ public sealed class MonitorHost : IAsyncDisposable
     {
         lock (_gate)
             return [.. _workers.Select(w => w.Status)];
+    }
+
+    /// <summary>What happened to one pushed delivery: the events published, and the monitors that took it.</summary>
+    public sealed record Delivery(IReadOnlyList<EventRecord> Records, IReadOnlyList<string> Monitors, string Description);
+
+    /// <summary>
+    /// A webhook (now from dev ingest, later from push mode) goes to every enabled monitor that watches what it's about,
+    /// with that monitor's switches applied, and into that monitor's journal as a received delivery. One that no monitor
+    /// watches is journalled as unmatched. Throws <see cref="ArgumentException"/> for an unknown source, and lets the
+    /// source's parse errors through.
+    /// </summary>
+    public Delivery Receive(string sourceName, string kind, string body, EventVia via, string? onlyMonitor = null)
+    {
+        if (!_sources.TryGetValue(sourceName, out var source))
+            throw new ArgumentException($"Pylon doesn't know the source '{sourceName}'.", nameof(sourceName));
+        var started = _time.GetUtcNow();
+        var description = source.DescribeDelivery(kind, body) ?? kind;
+        var trace = new RequestTrace { Method = "POST", Path = $"{sourceName} webhook: {kind}", Status = 200, Bytes = body.Length, Body = body };
+
+        var records = new List<EventRecord>();
+        var monitors = new List<string>();
+        foreach (var definition in Definitions.Where(d => d.Enabled && d.Source == sourceName && (onlyMonitor is null || d.Id == onlyMonitor)))
+        {
+            if (source.Receive(definition, kind, body, via) is not { } result)
+                continue;
+            monitors.Add(definition.Id);
+            var (published, observations) = PublishPaired(definition.Id, result.Events, result.Observations, pushed: true);
+            records.AddRange(published);
+            Record(new PollRecord
+            {
+                MonitorId = definition.Id,
+                Kind = PollKind.Received,
+                Received = description,
+                StartedAt = started,
+                Calls = [trace],
+                Observations = observations,
+                Notes = result.Notes,
+                Sequences = [.. published.Select(r => r.Sequence)],
+            });
+            lock (_gate)
+                _workers.FirstOrDefault(w => w.Definition.Id == definition.Id)?.Received(published.Count);
+        }
+
+        if (monitors.Count == 0)
+            Record(new PollRecord
+            {
+                MonitorId = PollRecord.Unmatched,
+                Kind = PollKind.Received,
+                Received = description,
+                StartedAt = started,
+                Calls = [trace],
+                Notes = [new ObservationNote(NoteLevel.Info, onlyMonitor is null
+                    ? "No enabled monitor watches what this is about, so nothing was reported."
+                    : $"The monitor '{onlyMonitor}' isn't enabled or doesn't watch what this is about.")],
+            });
+        return new Delivery(records, monitors, description);
+    }
+
+    sealed record Reported(long Sequence, DateTimeOffset At, bool Pushed);
+
+    static string PairingKey(EventDraft draft) =>
+        $"{draft.Topic}|{draft.Type}|{(draft.Hint is null ? "" : string.Join(',', draft.Hint.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value}")))}";
+
+    /// <summary>
+    /// Publishes a monitor's events, minus any the other path (poll or push) already reported within the pairing
+    /// window. Those are moved to the observation's quiet list, so the Activity says why they didn't come through. A
+    /// pairing is used once, so a later change that looks the same (checks failing, then passing again) still reports.
+    /// </summary>
+    (IReadOnlyList<EventRecord> Published, IReadOnlyList<Observation> Observations) PublishPaired(
+        string monitorId, IReadOnlyList<EventDraft> drafts, IReadOnlyList<Observation> observations, bool pushed)
+    {
+        lock (_pairing)
+        {
+            var now = _time.GetUtcNow();
+            if (!_reported.TryGetValue(monitorId, out var recent))
+                _reported[monitorId] = recent = new Dictionary<string, Reported>(StringComparer.Ordinal);
+            foreach (var expired in recent.Where(p => now - p.Value.At > PairingWindow).Select(p => p.Key).ToList())
+                recent.Remove(expired);
+
+            var keep = new List<EventDraft>();
+            var paired = new List<(EventDraft Draft, Reported Match)>();
+            foreach (var draft in drafts)
+            {
+                var key = PairingKey(draft);
+                if (recent.TryGetValue(key, out var match) && match.Pushed != pushed)
+                {
+                    recent.Remove(key);
+                    paired.Add((draft, match));
+                }
+                else
+                {
+                    keep.Add(draft);
+                }
+            }
+
+            var published = keep.Count > 0
+                ? _hub.Publish([.. keep.Select(e => e.MonitorId is null ? e with { MonitorId = monitorId } : e)])
+                : [];
+            for (var i = 0; i < published.Count; i++)
+                recent[PairingKey(keep[i])] = new Reported(published[i].Sequence, now, pushed);
+
+            if (paired.Count == 0)
+                return (published, observations);
+            var updated = observations.ToList();
+            foreach (var (draft, match) in paired)
+            {
+                var reason = match.Pushed ? $"already received from a webhook as #{match.Sequence}" : $"already found by polling as #{match.Sequence}";
+                var index = updated.FindIndex(o => o.Topic == draft.Topic);
+                var quiet = new QuietChange(draft.Type, draft.Summary, reason);
+                if (index >= 0)
+                    updated[index] = updated[index] with { Reported = [.. updated[index].Reported.Where(t => t != draft.Type)], Quiet = [.. updated[index].Quiet, quiet] };
+                else
+                    updated.Add(new Observation { Resource = draft.Topic, Topic = draft.Topic, Quiet = [quiet] });
+            }
+            return (published, updated);
+        }
+    }
+
+    /// <summary>The journal is for looking at; a failure to write it never stops a monitor or a delivery.</summary>
+    void Record(PollRecord poll)
+    {
+        PollRecord stored;
+        try
+        {
+            // Not Polled?.Invoke(_journal.Add(poll)): with no listener, that skips the write as well as the call.
+            stored = _journal.Add(poll);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Couldn't record a poll of {Id}", poll.MonitorId);
+            return;
+        }
+        Polled?.Invoke(stored);
     }
 
     void Restart()
@@ -315,6 +464,15 @@ public sealed class MonitorHost : IAsyncDisposable
                     http = Unused;
                 else if (host._httpOverride is { } factory)
                     http = factory(definition.Connection);
+                else if (definition.Connection == TestBenchConnection)
+                {
+                    if (host._testBench is not { } bench)
+                    {
+                        Update(MonitorState.Invalid, "The 'testbench' connection only exists in dev builds (or with --dev-ingest). Use a Postern connection.");
+                        return MaxBackoff;
+                    }
+                    http = new HttpClient { BaseAddress = bench };
+                }
                 else if (host._postern is { State: PosternState.Approved } postern && ScopesApproved(source, postern))
                     http = postern.HttpFor(definition.Connection);
                 else
@@ -330,9 +488,7 @@ public sealed class MonitorHost : IAsyncDisposable
             _pollTimestamp = host._time.GetTimestamp();
             var result = await _runner.PollAsync(cancellationToken);
             var now = host._time.GetUtcNow();
-            var published = result.Events.Count > 0
-                ? host._hub.Publish([.. result.Events.Select(e => e.MonitorId is null ? e with { MonitorId = definition.Id } : e)])
-                : [];
+            var (published, observations) = host.PublishPaired(definition.Id, result.Events, result.Observations, pushed: false);
             Record(new PollRecord
             {
                 MonitorId = definition.Id,
@@ -343,7 +499,7 @@ public sealed class MonitorHost : IAsyncDisposable
                 Requests = result.Requests,
                 NotModified = result.NotModified,
                 Calls = result.Calls,
-                Observations = result.Observations,
+                Observations = observations,
                 Notes = result.Notes,
                 Sequences = [.. published.Select(r => r.Sequence)],
             });
@@ -373,17 +529,15 @@ public sealed class MonitorHost : IAsyncDisposable
 
         long Elapsed() => (long)host._time.GetElapsedTime(_pollTimestamp).TotalMilliseconds;
 
-        /// <summary>The journal is for looking at; a failure to write it never stops the monitor.</summary>
-        void Record(PollRecord poll)
+        void Record(PollRecord poll) => host.Record(poll);
+
+        /// <summary>A webhook gave this monitor events: they count on its card like polled ones.</summary>
+        public void Received(int events)
         {
-            try
-            {
-                host.Polled?.Invoke(host._journal.Add(poll));
-            }
-            catch (Exception ex)
-            {
-                host._log.LogWarning(ex, "Couldn't record a poll of {Id}", definition.Id);
-            }
+            if (events == 0)
+                return;
+            Status = Status with { LastEventAt = host._time.GetUtcNow(), Events = Status.Events + events };
+            host.Changed?.Invoke();
         }
 
         bool ScopesApproved(ISource source, PosternGateway postern) =>

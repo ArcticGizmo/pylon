@@ -86,6 +86,8 @@ internal static class Program
             DataDirectory = Args.DataDirectory,
             PosternPipeName = Args.PosternPipeName,
             DevIngest = Args.DevIngest,
+            // The same trust as dev ingest: both let the test bench stand in for GitHub.
+            TestBench = Args.DevIngest ? PylonOptions.DefaultTestBench : null,
         },
         new PylonOverrides { Logging = builder => builder.AddProvider(Logs) });
 

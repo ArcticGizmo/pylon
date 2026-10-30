@@ -58,4 +58,13 @@ public interface ISource
 
     /// <summary>What a monitor of this source is keeping track of, read back from its stored state.</summary>
     IReadOnlyList<WatchedItem> Watched(IMonitorState state) => [];
+
+    /// <summary>
+    /// What a pushed delivery (a webhook: <paramref name="kind"/> is its event name) means for one monitor, applying
+    /// that monitor's switches. Null when the monitor doesn't watch what the delivery is about.
+    /// </summary>
+    PollResult? Receive(MonitorDefinition monitor, string kind, string body, EventVia via) => null;
+
+    /// <summary>A one-line description of a delivery for the journal, or null when the source can't read it.</summary>
+    string? DescribeDelivery(string kind, string body) => null;
 }

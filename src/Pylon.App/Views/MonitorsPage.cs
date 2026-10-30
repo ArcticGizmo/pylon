@@ -19,6 +19,8 @@ internal sealed class MonitorsPage : UserControl
     readonly PylonRuntime _runtime;
     readonly StackPanel _postern = new() { Spacing = 6 };
     readonly StackPanel _list = new() { Spacing = 10 };
+    readonly StackPanel _unmatched = new() { Spacing = 4 };
+    readonly Border _unmatchedCard;
     readonly TextBlock _error = Ui.Text("", Ui.Danger, 12);
     readonly DispatcherTimer _tick;
     readonly ScrollViewer _overview;
@@ -28,6 +30,7 @@ internal sealed class MonitorsPage : UserControl
     {
         _runtime = runtime;
         _detail = new MonitorDetail(runtime, ShowList);
+        _unmatchedCard = Ui.Card(_unmatched);
         var add = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         foreach (var source in runtime.Monitors.Sources)
             add.Children.Add(Ui.Button($"Add {source.DisplayName}", () => Edit(source, null), primary: source.UsesPostern));
@@ -46,6 +49,7 @@ internal sealed class MonitorsPage : UserControl
                     add,
                     _error,
                     _list,
+                    _unmatchedCard,
                 },
             },
         };
@@ -76,6 +80,8 @@ internal sealed class MonitorsPage : UserControl
     {
         if (ShowingDetail)
             _detail.OnPolled(poll);
+        else if (poll.MonitorId == PollRecord.Unmatched)
+            RefreshUnmatched();
     }
 
     public void Refresh()
@@ -93,6 +99,30 @@ internal sealed class MonitorsPage : UserControl
             _list.Children.Add(Ui.Text("No monitors yet. Add a GitHub monitor to watch pull requests, or a heartbeat to see the stream working.", Ui.Muted));
         foreach (var definition in definitions)
             _list.Children.Add(Card(definition, statuses.GetValueOrDefault(definition.Id)));
+        RefreshUnmatched();
+    }
+
+    /// <summary>Webhooks that arrived for something no monitor watches: the usual answer to "I sent it, where is it?".</summary>
+    void RefreshUnmatched()
+    {
+        _unmatched.Children.Clear();
+        var recent = _runtime.Journal.Recent(PollRecord.Unmatched, null, 5);
+        _unmatchedCard.IsVisible = recent.Count > 0;
+        if (recent.Count == 0)
+            return;
+        _unmatched.Children.Add(Ui.Field("Webhooks no monitor took", Ui.Text(
+            "A webhook goes to the enabled monitors that watch its repository. These arrived for repositories none of them watch, so nothing was reported.",
+            Ui.Muted, 12)));
+        var now = DateTimeOffset.UtcNow;
+        foreach (var delivery in recent)
+            _unmatched.Children.Add(new SelectableTextBlock
+            {
+                Text = $"{Ui.Ago(delivery.StartedAt, now),-10} {delivery.Received}",
+                FontFamily = Ui.Mono,
+                FontSize = 12,
+                Foreground = Ui.Foreground,
+                TextWrapping = TextWrapping.Wrap,
+            });
     }
 
     void RefreshPostern()
@@ -154,8 +184,9 @@ internal sealed class MonitorsPage : UserControl
             _ => Ui.Muted,
         };
 
+        var via = definition.Connection == MonitorHost.TestBenchConnection ? "on the test bench (no Postern)" : $"via {definition.Connection}";
         var what = definition.Source == "github"
-            ? $"{string.Join(", ", definition.Targets)} via {definition.Connection} · {string.Join(", ", definition.Events)}"
+            ? $"{string.Join(", ", definition.Targets)} {via} · {string.Join(", ", definition.Events)}"
             : source?.DisplayName ?? definition.Source;
         var numbers = status is null ? "" :
             $"Last poll {Ui.Ago(status.LastPollAt, now)} · last event {Ui.Ago(status.LastEventAt, now)} · {status.Requests} request(s), {status.NotModified} unchanged (304) · {status.Events} event(s)";
@@ -222,7 +253,7 @@ internal sealed class MonitorsPage : UserControl
 
     async void Edit(ISource source, MonitorDefinition? original)
     {
-        var editor = new MonitorEditor(source, original, _runtime.Monitors.Definitions);
+        var editor = new MonitorEditor(source, original, _runtime.Monitors.Definitions, _runtime.Monitors.TestBenchAvailable);
         if (TopLevel.GetTopLevel(this) is Window owner)
             await editor.ShowDialog(owner);
         else

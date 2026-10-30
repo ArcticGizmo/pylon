@@ -46,6 +46,7 @@ MonitorDefinition beat = new() { Id = "heartbeat", Name = "Heartbeat", Source = 
 await Generate();
 runtime.Monitors.Save([work, personal, beat]);
 await Task.Delay(1500); // let each monitor's first poll land so the Monitors page shows real states
+Push();
 
 using var session = HeadlessUnitTestSession.StartNew(typeof(SnapshotApp));
 await session.Dispatch(() =>
@@ -62,9 +63,10 @@ await session.Dispatch(() =>
     // The poll that found the approval, expanded: it also carries the A1 warning from the quirk switched on above.
     var approvalPoll = runtime.Journal.PollFor(approved.Sequence);
     Detail(window => window.ShowMonitor(work.Id, approvalPoll), "monitor-activity");
+    Detail(window => window.ShowMonitor(work.Id), "monitor-activity-top");
     Detail(window => window.ShowMonitor(work.Id, tab: MonitorDetail.Tab.Watching), "monitor-watching");
     Detail(window => window.ShowMonitor(work.Id, tab: MonitorDetail.Tab.Budget), "monitor-budget");
-    Save(new MonitorEditor(new GitHubSource(), work, [work, personal, beat]), "monitor-editor");
+    Save(new MonitorEditor(new GitHubSource(), work, [work, personal, beat], testBench: true), "monitor-editor");
 
     var log = new Pylon.TestBench.BenchLog();
     log.Add(Pylon.TestBench.BenchLog.Kind.Fake, "200 GET /repos/example-org/app/pulls?state=all&sort=updated&direction=desc&per_page=50");
@@ -145,9 +147,16 @@ async Task Generate()
     await Poll();
 
     runtime.Hub.Publish([EventDraft.Resync("github", "recovered", work.Id)]);
-    github.Changed += hook => runtime.Hub.Publish(WebhookNormaliser.Normalise(hook.Event, hook.Body, EventVia.Test));
+}
+
+// After the monitors are saved, so webhooks have monitors to go to (one of them to a repository none watches).
+void Push()
+{
+    var fresh = github.Pulls("example-org/web").First(p => p.Title == "Fix flaky login test");
+    github.Changed += hook => runtime.Monitors.Receive(GitHubSource.SourceName, hook.Event, hook.Body, EventVia.Test);
     github.Review(fresh, "dev-one", "COMMENTED");
     github.SetChecks(fresh, "pending");
+    github.Open("example-org/docs", "Fix a typo in the README", "dev-four");
 }
 
 void Detail(Action<MainWindow> open, string name)

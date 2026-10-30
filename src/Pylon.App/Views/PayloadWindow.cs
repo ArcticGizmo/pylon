@@ -148,7 +148,7 @@ internal sealed class PayloadWindow : Window
             Margin = new Thickness(0, 10, 0, 0),
             Children =
             {
-                Ui.Button("Show the poll", () =>
+                Ui.Button("Show in Activity", () =>
                 {
                     showPoll?.Invoke();
                     Close();

@@ -56,6 +56,10 @@ public sealed record Observation
 
     public string? Title { get; init; }
     public string? Url { get; init; }
+
+    /// <summary>The event topic for the resource, so the scheduler can match it to the events it publishes.</summary>
+    public string? Topic { get; init; }
+
     public IReadOnlyList<FieldChange> Changes { get; init; } = [];
 
     /// <summary>The event types this poll reported for the resource.</summary>
@@ -70,11 +74,25 @@ public sealed record WatchedItem(string Resource, string? Title, string? Url, IR
 
 public enum PollOutcome { Ok, Error, Throttled }
 
-/// <summary>One poll as the journal keeps it: what was called, what was noticed, and which events came of it.</summary>
+/// <summary>A poll Pylon made, or a delivery (a webhook) it was sent.</summary>
+public enum PollKind { Poll, Received }
+
+/// <summary>
+/// One poll, or one received webhook, as the journal keeps it: what was called or sent, what was noticed, and which
+/// events came of it.
+/// </summary>
 public sealed record PollRecord
 {
+    /// <summary>The journal's monitor id for webhooks no monitor watches.</summary>
+    public const string Unmatched = "_unmatched";
+
     public long Id { get; init; }
     public required string MonitorId { get; init; }
+    public PollKind Kind { get; init; } = PollKind.Poll;
+
+    /// <summary>For a received delivery, what it was (<c>pull_request_review (submitted)</c>).</summary>
+    public string? Received { get; init; }
+
     public DateTimeOffset StartedAt { get; init; }
     public long Milliseconds { get; init; }
     public PollOutcome Outcome { get; init; }

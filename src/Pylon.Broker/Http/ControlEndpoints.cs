@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Pylon.Broker.Monitors;
 using Pylon.Core.Events;
 using Pylon.Sources.GitHub;
 
@@ -46,7 +47,8 @@ internal static class ControlEndpoints
         if (!runtime.Options.DevIngest)
             return;
 
-        // POST /_pylon/dev/ingest/github with X-GitHub-Event: pull_request and a webhook body.
+        // POST /_pylon/dev/ingest/github with X-GitHub-Event: pull_request and a webhook body. It goes to the monitors
+        // that watch its repository, as a real webhook will in push mode; ?monitor=id limits it to one of them.
         app.MapPost("/_pylon/dev/ingest/{source}", async (HttpContext context, string source) =>
         {
             if (source != GitHubSource.SourceName)
@@ -61,18 +63,27 @@ internal static class ControlEndpoints
                 return;
             }
             var body = await new StreamReader(context.Request.Body).ReadToEndAsync(context.RequestAborted);
-            IReadOnlyList<EventDraft> drafts;
+            MonitorHost.Delivery delivery;
             try
             {
-                drafts = WebhookNormaliser.Normalise(githubEvent, body, EventVia.Test, context.Request.Query["monitor"].FirstOrDefault());
+                using (JsonDocument.Parse(body))
+                {
+                    // Checked here, so a bad body is refused even when no monitor would have parsed it.
+                }
+                delivery = runtime.Monitors.Receive(source, githubEvent, body, EventVia.Test, context.Request.Query["monitor"].FirstOrDefault());
             }
             catch (JsonException ex)
             {
                 await PylonErrors.Write(context, StatusCodes.Status400BadRequest, "bad-json", ex.Message);
                 return;
             }
-            var records = runtime.Hub.Publish(drafts);
-            await context.Response.WriteAsJsonAsync(new { sequences = records.Select(r => r.Sequence), types = records.Select(r => r.Type) });
+            await context.Response.WriteAsJsonAsync(new
+            {
+                sequences = delivery.Records.Select(r => r.Sequence),
+                types = delivery.Records.Select(r => r.Type),
+                monitors = delivery.Monitors,
+                received = delivery.Description,
+            });
         });
 
         // POST /_pylon/dev/emit with a raw event: {source, topic, type, kind?, summary, status?, hint?, payload?}

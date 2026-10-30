@@ -93,6 +93,72 @@ public sealed partial class GitHubSource : ISource
 
     static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
+    public string? DescribeDelivery(string kind, string body)
+    {
+        try
+        {
+            var delivery = WebhookNormaliser.Parse(kind, body);
+            return delivery.Repo is null ? delivery.Description : $"{delivery.Description} for {delivery.Repo}";
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// A webhook for one of the monitor's repositories becomes that monitor's events, with the same switches (and the
+    /// same reasons for keeping quiet) as the poll path. Anything else isn't this monitor's business.
+    /// </summary>
+    public PollResult? Receive(MonitorDefinition monitor, string kind, string body, Pylon.Core.Events.EventVia via)
+    {
+        var delivery = WebhookNormaliser.Parse(kind, body);
+        if (delivery.Repo is null || !monitor.Targets.Contains(delivery.Repo, StringComparer.OrdinalIgnoreCase))
+            return null;
+
+        var ignoreBots = monitor.Option(GitHubEvents.IgnoreBots, true);
+        var includeDrafts = monitor.Option(GitHubEvents.IncludeDrafts, false);
+        var events = new List<Pylon.Core.Events.EventDraft>();
+        var observations = new List<Observation>();
+        foreach (var pr in delivery.Changes.GroupBy(c => c.Number))
+        {
+            var reported = new List<string>();
+            var quiet = new List<QuietChange>();
+            foreach (var change in pr)
+            {
+                var reason = !monitor.Events.Contains(change.Name) ? $"'{change.Name}' is switched off for this monitor"
+                    : change.AuthorIsBot && ignoreBots && change.Name != GitHubEvents.Checks ? "opened by a bot, and 'ignore bots' is on"
+                    : change.ReviewerIsBot && ignoreBots ? "a review by a bot, and 'ignore bots' is on"
+                    : change.Draft && !includeDrafts && change.Name is not (GitHubEvents.ReadyForReview or GitHubEvents.Merged or GitHubEvents.Closed) ? "a draft, and 'include drafts' is off"
+                    : null;
+                if (reason is null)
+                {
+                    events.Add(change.ToDraft(monitor.Id, via, body));
+                    reported.Add(GitHubEvents.Type(change.Name));
+                }
+                else
+                {
+                    quiet.Add(new QuietChange(GitHubEvents.Type(change.Name), change.Summary, reason));
+                }
+            }
+            var first = pr.First();
+            observations.Add(new Observation
+            {
+                Resource = first.Reference,
+                Title = first.Title,
+                Url = first.Url,
+                Topic = GitHubEvents.Topic(first.Repo, first.Number),
+                Reported = reported,
+                Quiet = quiet,
+            });
+        }
+
+        IReadOnlyList<ObservationNote> notes = delivery.Changes.Count == 0
+            ? [new ObservationNote(NoteLevel.Info, $"GitHub sends {delivery.Description}, but it isn't a change Pylon reports.")]
+            : [];
+        return new PollResult(0, 0, events) { Observations = observations, Notes = notes };
+    }
+
     [GeneratedRegex("^[a-z0-9][a-z0-9-]*$")]
     private static partial Regex ConnectionPattern();
 

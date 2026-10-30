@@ -68,6 +68,25 @@ public class PollJournalTests : IDisposable
     }
 
     [Fact]
+    public void ReceivedDeliveriesKeepTheirKindAndStayOutOfTheBudget()
+    {
+        var journal = Journal();
+        var stored = journal.Add(new PollRecord
+        {
+            MonitorId = PollRecord.Unmatched,
+            Kind = PollKind.Received,
+            Received = "pull_request (opened) for example/app",
+            StartedAt = T0,
+            Calls = [new RequestTrace { Method = "POST", Path = "github webhook: pull_request", Status = 200, Body = "{}" }],
+        });
+        var read = Assert.Single(journal.Recent(PollRecord.Unmatched, null, 10));
+        Assert.Equal(PollKind.Received, read.Kind);
+        Assert.Equal("pull_request (opened) for example/app", read.Received);
+        Assert.Equal("{}", journal.Body(stored.Id, 0));
+        Assert.Empty(journal.Hours(PollRecord.Unmatched, T0.AddHours(-1)));
+    }
+
+    [Fact]
     public void RecentIsNewestFirstPerMonitorAndPages()
     {
         var journal = Journal();

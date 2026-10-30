@@ -21,6 +21,15 @@ public sealed class PylonOptions
     /// <summary>Maps <c>/_pylon/dev/*</c>, so the test bench and <c>pylon-cli emit</c> can write to the stream.</summary>
     public bool DevIngest { get; init; }
 
+    /// <summary>
+    /// Where the test bench's fake GitHub listens. Monitors on the <c>testbench</c> connection poll it directly, with no
+    /// Postern, so the poll path can be debugged with one step of setup. Null (the default) means no such connection.
+    /// </summary>
+    public Uri? TestBench { get; init; }
+
+    /// <summary>The test bench's default address (<c>pylon-testbench --port</c> changes it).</summary>
+    public static readonly Uri DefaultTestBench = new("http://127.0.0.1:5610/");
+
     public bool PublishDiscovery { get; init; } = true;
     public string PosternPipeName { get; init; } = Profile.PosternPipeName;
 
@@ -82,7 +91,7 @@ public sealed class PylonRuntime : IAsyncDisposable
         if (overrides.MonitorHttp is null)
             Postern = new PosternGateway(new PosternOptions { AppName = options.PosternAppName, PipeName = options.PosternPipeName });
         Monitors = new MonitorHost(overrides.Sources ?? [new GitHubSource(), new HeartbeatSource()], Hub, Journal, Postern, overrides.MonitorHttp,
-            options.DataDirectory, Time, _app.Logger);
+            options.TestBench, options.DataDirectory, Time, _app.Logger);
 
         ControlEndpoints.Map(_app, this);
     }

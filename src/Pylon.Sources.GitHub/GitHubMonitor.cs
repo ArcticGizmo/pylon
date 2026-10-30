@@ -165,6 +165,7 @@ public sealed class GitHubMonitor : IMonitorRunner
             Resource = next.Reference,
             Title = next.Title,
             Url = next.Url.Length > 0 ? next.Url : null,
+            Topic = GitHubEvents.Topic(next.Repo, next.Number),
             Changes = fields,
             Reported = [.. changes.Select(c => GitHubEvents.Type(c.Name))],
             Quiet = quiet,

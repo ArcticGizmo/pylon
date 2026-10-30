@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Pylon.Broker.Monitors;
 using Pylon.Core.Monitors;
 using Pylon.Sources.GitHub;
 
@@ -32,7 +33,8 @@ internal sealed class MonitorEditor : Window
     readonly Border _accentPreview = new() { Width = 24, Height = 24, CornerRadius = new CornerRadius(4) };
     readonly StackPanel _problems = new() { Spacing = 2 };
 
-    public MonitorEditor(ISource source, MonitorDefinition? original, IReadOnlyList<MonitorDefinition> others)
+    /// <param name="testBench">Whether this run has the <c>testbench</c> connection (dev builds), which gets a shortcut.</param>
+    public MonitorEditor(ISource source, MonitorDefinition? original, IReadOnlyList<MonitorDefinition> others, bool testBench = false)
     {
         _source = source;
         _original = original;
@@ -63,11 +65,31 @@ internal sealed class MonitorEditor : Window
 
         if (source.UsesPostern)
         {
-            form.Children.Add(Ui.Field("Postern connection", new StackPanel
+            var connection = new StackPanel
             {
                 Spacing = 4,
                 Children = { _connection, Ui.Text("The connection name in Postern (github, github-work, …). Pylon asks Postern for read access to each owner's pull requests.", Ui.Muted, 11.5) },
-            }));
+            };
+            if (testBench)
+            {
+                var useBench = Ui.Button("Use the test bench", () =>
+                {
+                    _connection.Text = MonitorHost.TestBenchConnection;
+                    if (string.IsNullOrWhiteSpace(_targets.Text))
+                        _targets.Text = "example-org/app";
+                });
+                useBench.Margin = new Thickness(0, 0, 10, 0);
+                DockPanel.SetDock(useBench, Dock.Left);
+                connection.Children.Add(new DockPanel
+                {
+                    Children =
+                    {
+                        useBench,
+                        Ui.Text($"Dev builds: '{MonitorHost.TestBenchConnection}' polls the test bench's fake GitHub directly, with no Postern setup.", Ui.Muted, 11.5),
+                    },
+                });
+            }
+            form.Children.Add(Ui.Field("Connection", connection));
             form.Children.Add(Ui.Field("Repositories", _targets));
         }
 

@@ -60,6 +60,7 @@ public sealed class PollJournal
             CREATE TABLE IF NOT EXISTS polls (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 monitor_id TEXT NOT NULL,
+                kind TEXT NOT NULL DEFAULT 'poll',
                 started_at TEXT NOT NULL,
                 milliseconds INTEGER NOT NULL,
                 outcome TEXT NOT NULL,
@@ -92,6 +93,16 @@ public sealed class PollJournal
             );
             """;
         command.ExecuteNonQuery();
+
+        // Journals written before received webhooks were journalled have no kind; everything in them was a poll.
+        using var columns = connection.CreateCommand();
+        columns.CommandText = "SELECT COUNT(*) FROM pragma_table_info('polls') WHERE name = 'kind'";
+        if (Convert.ToInt64(columns.ExecuteScalar(), CultureInfo.InvariantCulture) == 0)
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = "ALTER TABLE polls ADD COLUMN kind TEXT NOT NULL DEFAULT 'poll'";
+            alter.ExecuteNonQuery();
+        }
     }
 
     /// <summary>Stores a poll, its response bodies and its links to events. Returns it with its id.</summary>
@@ -102,15 +113,16 @@ public sealed class PollJournal
         using var insert = connection.CreateCommand();
         insert.Transaction = transaction;
         insert.CommandText = """
-            INSERT INTO polls (monitor_id, started_at, milliseconds, outcome, error, requests, not_modified, events, warnings,
+            INSERT INTO polls (monitor_id, kind, started_at, milliseconds, outcome, error, requests, not_modified, events, warnings,
                 rate_remaining, rate_limit, measured_200, cost_200, measured_304, cost_304, detail)
-            VALUES ($monitor, $at, $ms, $outcome, $error, $requests, $notModified, $events, $warnings,
+            VALUES ($monitor, $kind, $at, $ms, $outcome, $error, $requests, $notModified, $events, $warnings,
                 $remaining, $limit, $m200, $c200, $m304, $c304, $detail);
             SELECT last_insert_rowid();
             """;
         var rate = poll.RateLimit;
         var measured = poll.Calls.Where(c => c.RateCost is not null).ToList();
         insert.Parameters.AddWithValue("$monitor", poll.MonitorId);
+        insert.Parameters.AddWithValue("$kind", poll.Kind.ToString().ToLowerInvariant());
         insert.Parameters.AddWithValue("$at", Stamp(poll.StartedAt));
         insert.Parameters.AddWithValue("$ms", poll.Milliseconds);
         insert.Parameters.AddWithValue("$outcome", poll.Outcome.ToString().ToLowerInvariant());
@@ -125,7 +137,7 @@ public sealed class PollJournal
         insert.Parameters.AddWithValue("$c200", measured.Where(c => !c.NotModified).Sum(c => c.RateCost!.Value));
         insert.Parameters.AddWithValue("$m304", measured.Count(c => c.NotModified));
         insert.Parameters.AddWithValue("$c304", measured.Where(c => c.NotModified).Sum(c => c.RateCost!.Value));
-        insert.Parameters.AddWithValue("$detail", JsonSerializer.Serialize(new Detail(poll.Calls, poll.Observations, poll.Notes, poll.Sequences), Json));
+        insert.Parameters.AddWithValue("$detail", JsonSerializer.Serialize(new Detail(poll.Calls, poll.Observations, poll.Notes, poll.Sequences, poll.Received), Json));
         var id = (long)insert.ExecuteScalar()!;
 
         var now = Stamp(_time.GetUtcNow());
@@ -231,7 +243,7 @@ public sealed class PollJournal
             SELECT substr(started_at, 1, 13) AS hour, COUNT(*), SUM(requests), SUM(not_modified), SUM(events),
                 SUM(outcome <> 'ok'), SUM(warnings), MIN(rate_remaining), MAX(rate_limit),
                 SUM(measured_200), SUM(cost_200), SUM(measured_304), SUM(cost_304), MIN(started_at)
-            FROM polls WHERE monitor_id = $m AND started_at >= $since
+            FROM polls WHERE monitor_id = $m AND kind = 'poll' AND started_at >= $since
             GROUP BY hour ORDER BY hour DESC
             """;
         command.Parameters.AddWithValue("$m", monitorId);
@@ -277,11 +289,13 @@ public sealed class PollJournal
 
     static PollRecord Read(SqliteDataReader r)
     {
-        var detail = JsonSerializer.Deserialize<Detail>(r.GetString(r.GetOrdinal("detail")), Json) ?? new Detail([], [], [], []);
+        var detail = JsonSerializer.Deserialize<Detail>(r.GetString(r.GetOrdinal("detail")), Json) ?? new Detail([], [], [], [], null);
         return new PollRecord
         {
             Id = r.GetInt64(r.GetOrdinal("id")),
             MonitorId = r.GetString(r.GetOrdinal("monitor_id")),
+            Kind = Enum.Parse<PollKind>(r.GetString(r.GetOrdinal("kind")), ignoreCase: true),
+            Received = detail.Received,
             StartedAt = DateTimeOffset.Parse(r.GetString(r.GetOrdinal("started_at")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
             Milliseconds = r.GetInt64(r.GetOrdinal("milliseconds")),
             Outcome = Enum.Parse<PollOutcome>(r.GetString(r.GetOrdinal("outcome")), ignoreCase: true),
@@ -297,5 +311,5 @@ public sealed class PollJournal
 
     static string Stamp(DateTimeOffset at) => at.UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
 
-    sealed record Detail(IReadOnlyList<RequestTrace> Calls, IReadOnlyList<Observation> Observations, IReadOnlyList<ObservationNote> Notes, IReadOnlyList<long> Sequences);
+    sealed record Detail(IReadOnlyList<RequestTrace> Calls, IReadOnlyList<Observation> Observations, IReadOnlyList<ObservationNote> Notes, IReadOnlyList<long> Sequences, string? Received);
 }

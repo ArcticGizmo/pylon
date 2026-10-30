@@ -41,14 +41,31 @@ public class BrokerTests : IAsyncLifetime
         _dir.Dispose();
     }
 
-    async Task<PylonRuntime> Start(bool devIngest = true, Retention? retention = null)
+    /// <param name="testBench">Use the real connection logic with the fake as the test bench, instead of bypassing it.
+    /// Postern then points at a pipe nobody listens on, so no real Postern is ever asked anything.</param>
+    async Task<PylonRuntime> Start(bool devIngest = true, Retention? retention = null, bool testBench = false)
     {
         _runtime = PylonRuntime.Create(
-            new PylonOptions { PipeName = _pipe, DataDirectory = _dir.Path, DevIngest = devIngest, PublishDiscovery = false, Retention = retention ?? new Retention() },
-            new PylonOverrides { MonitorHttp = _ => new HttpClient { BaseAddress = _fakeAddress } });
+            new PylonOptions
+            {
+                PipeName = _pipe,
+                DataDirectory = _dir.Path,
+                DevIngest = devIngest,
+                PublishDiscovery = false,
+                Retention = retention ?? new Retention(),
+                TestBench = testBench ? _fakeAddress : null,
+                PosternPipeName = "postern-test-" + Guid.NewGuid().ToString("N")[..8],
+            },
+            new PylonOverrides { MonitorHttp = testBench ? null : _ => new HttpClient { BaseAddress = _fakeAddress } });
         await _runtime.StartAsync();
         return _runtime;
     }
+
+    static MonitorDefinition Watching(string id, string connection = "github-fake", IReadOnlyList<string>? events = null) => new()
+    {
+        Id = id, Name = id, Source = GitHubSource.SourceName, Connection = connection,
+        Targets = ["example/app"], Events = events ?? [.. GitHubEvents.All.Select(e => e.Name)], PollSeconds = 600,
+    };
 
     /// <summary>Reads events in the background; returns once Pylon has registered the subscription.</summary>
     async Task<Reader> Subscribe(SubscriptionRequest request, long? since = null)
@@ -110,7 +127,8 @@ public class BrokerTests : IAsyncLifetime
     [Fact]
     public async Task TypeFilterAndWebhookIngest()
     {
-        await Start();
+        var runtime = await Start();
+        runtime.Monitors.Save([Watching("work")]);
         using var reader = await Subscribe(new(["github/pr/example/*/*"], ["github.pr.approved"]));
         _github.Changed += w => _client!.IngestGitHubAsync(w.Event, w.Body).GetAwaiter().GetResult();
         var pr = _github.Open("example/app", "Feature", "author-a");
@@ -118,8 +136,104 @@ public class BrokerTests : IAsyncLifetime
 
         var e = Assert.Single(await reader.Take(1));
         Assert.Equal("github.pr.approved", e.Type);
+        Assert.Equal("work", e.MonitorId);
         Assert.Equal(EventVia.Test, _runtime!.Store.ReadAfter(e.Sequence - 1, 1)[0].Via);
         Assert.True(_runtime.Store.ReadAfter(e.Sequence - 1, 1)[0].HasPayload);
+    }
+
+    [Fact]
+    public async Task AWebhookGoesToTheMonitorsWatchingItsRepoWithTheirSwitches()
+    {
+        var runtime = await Start();
+        runtime.Monitors.Save([Watching("all"), Watching("merges", events: [GitHubEvents.Merged])]);
+        var pr = _github.Open("example/app", "Feature", "author-a");
+        FakeWebhook? approval = null;
+        _github.Changed += w => approval = w;
+        _github.Review(pr, "reviewer-b", "APPROVED");
+
+        var result = await _client!.IngestGitHubAsync(approval!.Event, approval.Body);
+        Assert.Equal(["all", "merges"], result["monitors"]!.AsArray().Select(n => n!.GetValue<string>()).Order());
+        Assert.Single(result["sequences"]!.AsArray());
+
+        var quiet = runtime.Journal.Recent("merges", null, 10).Single(p => p.Kind == PollKind.Received);
+        Assert.Contains("pull_request_review (submitted)", quiet.Received);
+        Assert.Contains("switched off", Assert.Single(Assert.Single(quiet.Observations).Quiet).Reason);
+        Assert.NotNull(runtime.Journal.Body(quiet.Id, 0));
+        Assert.Single(runtime.Journal.Recent("all", null, 10), p => p.Kind == PollKind.Received && p.Sequences.Count == 1);
+    }
+
+    [Fact]
+    public async Task EveryDeliveryIsJournalled()
+    {
+        var runtime = await Start();
+        runtime.Monitors.Save([Watching("work")]);
+        var pr = _github.Open("example/app", "Feature", "author-a");
+        _github.Changed += w => runtime.Monitors.Receive(GitHubSource.SourceName, w.Event, w.Body, EventVia.Test);
+        _github.Review(pr, "reviewer-b", "COMMENTED");
+        _github.SetChecks(pr, "pending");
+
+        var received = runtime.Journal.Recent("work", null, 10).Where(p => p.Kind == PollKind.Received).ToList();
+        Assert.Equal(["check_run (created) for example/app", "pull_request_review (submitted) for example/app"], received.Select(p => p.Received));
+        Assert.All(received, p => Assert.Single(p.Sequences));
+    }
+
+    [Fact]
+    public async Task AWebhookNoMonitorWatchesIsJournalledAsUnmatched()
+    {
+        var runtime = await Start();
+        FakeWebhook? opened = null;
+        _github.Changed += w => opened = w;
+        _github.Open("example/elsewhere", "Feature", "author-a");
+
+        var result = await _client!.IngestGitHubAsync(opened!.Event, opened.Body);
+        Assert.Empty(result["sequences"]!.AsArray());
+        Assert.Empty(result["monitors"]!.AsArray());
+        Assert.Contains("example/elsewhere", Assert.Single(runtime.Journal.Recent(PollRecord.Unmatched, null, 10)).Received);
+    }
+
+    [Fact]
+    public async Task APollDoesNotReportWhatAWebhookAlreadyDid()
+    {
+        var runtime = await Start();
+        runtime.Monitors.Save([Watching("work")]);
+        await Until(() => runtime.Journal.Recent("work", null, 10).Count == 1);
+        FakeWebhook? opened = null;
+        _github.Changed += w => opened = w;
+        _github.Open("example/app", "Feature", "author-a");
+        var pushed = (await _client!.IngestGitHubAsync(opened!.Event, opened.Body))["sequences"]![0]!.GetValue<long>();
+
+        runtime.Monitors.PollNow("work");
+        await Until(() => runtime.Journal.Recent("work", null, 10).Count(p => p.Kind == PollKind.Poll) == 2);
+        var poll = runtime.Journal.Recent("work", null, 10).First(p => p.Kind == PollKind.Poll);
+        Assert.Empty(poll.Sequences);
+        var quiet = Assert.Single(Assert.Single(poll.Observations).Quiet);
+        Assert.Equal($"already received from a webhook as #{pushed}", quiet.Reason);
+    }
+
+    [Fact]
+    public async Task TheTestBenchConnectionPollsWithoutPostern()
+    {
+        var runtime = await Start(testBench: true);
+        using var reader = await Subscribe(new(["github/**"]));
+        runtime.Monitors.Save([Watching("bench", MonitorHost.TestBenchConnection)]);
+        await Until(() => runtime.Monitors.Status().Single().State == MonitorState.Idle);
+        Assert.Empty(runtime.Monitors.WantedScopes());
+
+        _github.Open("example/app", "Feature", "author-a");
+        runtime.Monitors.PollNow("bench");
+        Assert.Equal("github.pr.opened", Assert.Single(await reader.Take(1)).Type);
+    }
+
+    [Fact]
+    public async Task TheTestBenchConnectionIsInvalidWithoutATestBench()
+    {
+        // Not Start(): bypassing Postern for tests also bypasses the connection logic under test.
+        _runtime = PylonRuntime.Create(
+            new PylonOptions { PipeName = _pipe, DataDirectory = _dir.Path, PublishDiscovery = false, PosternPipeName = "postern-test-" + Guid.NewGuid().ToString("N")[..8] });
+        await _runtime.StartAsync();
+        _runtime.Monitors.Save([Watching("bench", MonitorHost.TestBenchConnection)]);
+        await Until(() => _runtime.Monitors.Status().Single().State == MonitorState.Invalid);
+        Assert.Contains("dev builds", _runtime.Monitors.Status().Single().Detail);
     }
 
     [Fact]

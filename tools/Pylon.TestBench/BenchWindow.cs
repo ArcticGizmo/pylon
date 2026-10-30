@@ -106,7 +106,7 @@ internal sealed class BenchWindow : Window
 
     Control TopBar(string pipe)
     {
-        var setup = Button("Postern setup for polling…", ShowSetup);
+        var setup = Button("Connect Pylon to this bench…", ShowSetup);
         return new Border
         {
             Background = Panel,
@@ -178,7 +178,7 @@ internal sealed class BenchWindow : Window
             Spacing = 10,
             Children =
             {
-                Text("Pylon polls this through Postern (see Postern setup), or gets each change pushed when the box below is ticked.", Muted, 12),
+                Text("A Pylon monitor watching these repositories polls this fake (see \"Connect Pylon to this bench\"), and also gets each change as a webhook when the box below is ticked.", Muted, 12),
                 Field("Repository", _repo),
                 new Grid
                 {
@@ -211,7 +211,7 @@ internal sealed class BenchWindow : Window
                     Margin = new Thickness(0, 0, 0, 8),
                     Children =
                     {
-                        Text("A GitHub webhook body goes through the same normaliser push mode will use. A raw Pylon event goes in as it is. Both arrive with via=test.", Muted, 12),
+                        Text("A GitHub webhook body goes to the Pylon monitors that watch its repository, as push mode will, and shows in their Activity. A raw Pylon event skips monitors and goes in as it is. Both arrive with via=test.", Muted, 12),
                         Field("Template (uses the repository, author and reviewer on the left)", _template),
                         _githubEvent,
                     },
@@ -334,7 +334,13 @@ internal sealed class BenchWindow : Window
                 ? await _pylon.EmitAsync(body, _stop.Token)
                 : await _pylon.IngestGitHubAsync(githubEvent, body, cancellationToken: _stop.Token);
             var sequences = result["sequences"]?.AsArray().Select(n => n?.ToString()).ToList() ?? [];
-            var text = sequences.Count == 0 ? $"{description}: Pylon accepted it but it produced no event (an action Pylon doesn't report)." : $"{description} → event #{string.Join(", #", sequences)}";
+            // A webhook goes to the monitors watching its repository; a raw event goes straight in.
+            var monitors = result["monitors"]?.AsArray().Select(n => n?.ToString()).ToList();
+            var text = monitors is { Count: 0 }
+                ? $"{description}: no monitor in Pylon watches that repository, so nothing was reported. Add one: Monitors → Add GitHub pull requests → Use the test bench."
+                : sequences.Count == 0
+                    ? $"{description}: {Taken(monitors)} but produced no event (switched off, a bot or draft, already reported, or not a change Pylon reports). The monitor's Activity says which."
+                    : $"{description} → event #{string.Join(", #", sequences)}{(monitors is null ? "" : $" ({Taken(monitors)})")}";
             _log.Add(BenchLog.Kind.Sent, text);
             Dispatcher.UIThread.Post(() =>
             {
@@ -352,6 +358,9 @@ internal sealed class BenchWindow : Window
             });
         }
     }
+
+    static string Taken(IReadOnlyList<string?>? monitors) =>
+        monitors is null ? "Pylon took it" : $"taken by {string.Join(", ", monitors)}";
 
     async Task TailPylon(CancellationToken cancellationToken)
     {
@@ -419,8 +428,15 @@ internal sealed class BenchWindow : Window
     void ShowSetup()
     {
         var text = $$"""
-            Pylon (Dev) polls through Postern (Dev). Point a Postern connection at this fake, give it any token, and
-            make a monitor that uses it. Nothing below touches real GitHub.
+            Pylon only hears about this fake GitHub through a monitor that watches its repositories. Both of the
+            fake's paths need one: polling (Pylon asks the fake) and webhooks (the box ticked, or Send to Pylon).
+
+            QUICKEST (dev builds, no Postern):
+               Pylon (Dev) → Monitors → Add GitHub pull requests → "Use the test bench", repositories: {{Repo}}
+               It polls {{_address.GetLeftPart(UriPartial.Authority)}} directly. Only works if this bench is on the
+               default port (5610).
+
+            THROUGH POSTERN (what real GitHub will use; nothing below touches real GitHub):
 
             1. Postern (Dev) → Connections → Edit as JSON, and add:
                  { "name": "github-fake", "baseUrl": "{{_address.GetLeftPart(UriPartial.Authority)}}" }
