@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Simulator</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nav{width:200px;flex:none;background:#1F1F2A;border-right:1px solid #2D2D3C;display:flex;flex-direction:column;padding:20px 8px 12px;box-sizing:border-box;gap:2px}
+.brand{padding:0 10px 18px;display:flex;flex-direction:column;gap:4px}
+.ni{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:14px;color:#E1E1EB;text-decoration:none}
+.ni:hover{background:#2D2D3C}
+.on{background:rgba(96,165,250,.15);color:#F5F5FA}
+.dev{background:rgba(255,95,176,.18);color:#FF5FB0;border-radius:10px;padding:1px 7px;font-size:10.5px;font-weight:700}
+.btn{background:#2D2D3C;color:#E1E1EB;border:0;border-radius:6px;padding:6px 11px;font:inherit;font-size:12.5px;text-decoration:none;display:inline-block}
+.primary{background:#60A5FA;color:#0B1220;font-weight:600}
+.lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0}
+.m{font-size:12px;color:#8C8CA0}
+.box{background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.opt{display:flex;gap:10px;align-items:flex-start;font-size:13px;padding:3px 0}
+.flow{display:flex;gap:12px;align-items:flex-start}
+.num{width:22px;height:22px;border-radius:11px;background:#2D2D3C;color:#E1E1EB;font-size:11.5px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none}
+.done{background:#4ADE80;color:#0B1220}
+.ft{font-size:13px;line-height:1.5}
+</style>
+</helmet>
+<div style="width:1100px;height:720px;display:flex;background:#181820;color:#E1E1EB;font-family:Inter,system-ui,sans-serif">
+  <nav class="nav" aria-label="Pylon">
+    <div class="brand"><span style="font-size:22px;color:#F5F5FA;font-weight:600">Pylon <span style="font-size:14px;color:#FF5FB0;font-weight:700">- DEV</span></span><span style="font-size:11px;color:#8C8CA0">changes, not polling</span></div>
+    <a class="ni" href="J2-Activity.dc.html">Activity</a>
+    <a class="ni" href="J5-Streams.dc.html">Streams</a>
+    <a class="ni" href="J4-Listeners.dc.html">Listeners</a>
+    <a class="ni on" href="J5-Simulator.dc.html">Simulator <span class="dev">DEV</span></a>
+    <a class="ni" href="#">Settings</a>
+  </nav>
+  <main style="flex:1;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px;min-width:0">
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <h1 style="margin:0;font-size:22px;font-weight:600;color:#F5F5FA">Simulator</h1>
+      <p style="margin:0;font-size:13px;color:#8C8CA0">Pretend GitHub repositories that behave like the real thing. The "Simulated GitHub" stream watches them, so everything else in Pylon works as it would for real.</p>
+    </div>
+
+    <div style="display:flex;gap:20px;flex:1;min-height:0">
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="lbl">SIM/APP · 2 OPEN PULL REQUESTS</div><button class="btn primary" type="button">Open a pull request</button></div>
+          <div style="display:flex;flex-direction:column;gap:6px;padding:10px 0;border-top:1px solid #2D2D3C">
+            <div style="font-size:14px;color:#F5F5FA">sim/app#3 · Add a widget to the dashboard</div>
+            <div class="m">by dev-one · checks passing · review requested from dev-two</div>
+            <div class="acts"><button class="btn" type="button">Request review</button><button class="btn" type="button">Approve</button><button class="btn" type="button">Request changes</button><button class="btn" type="button">Push a commit</button><button class="btn" type="button">Checks fail</button><button class="btn" type="button">Merge</button></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;padding:10px 0 0;border-top:1px solid #2D2D3C">
+            <div style="font-size:14px;color:#F5F5FA">sim/app#2 · Fix flaky login test</div>
+            <div class="m">by dev-three · draft · checks pending</div>
+            <div class="acts"><button class="btn" type="button">Mark ready</button><button class="btn" type="button">Request review</button><button class="btn" type="button">Checks pass</button><button class="btn" type="button">Close</button></div>
+          </div>
+        </div>
+        <div class="box">
+          <div class="lbl">HOW CHANGES REACH PYLON</div>
+          <label class="opt"><input type="radio" name="how" checked><span>Pylon checks for them, as it does with GitHub today</span></label>
+          <label class="opt"><input type="radio" name="how"><span>Each change is pushed straight away, like a webhook</span></label>
+          <label class="opt"><input type="radio" name="how"><span>Both (Pylon reports each change once)</span></label>
+          <details style="font-size:12.5px;color:#8C8CA0"><summary style="cursor:pointer">Advanced: make it behave unlike GitHub to test the poll strategy</summary></details>
+        </div>
+      </div>
+
+      <div style="width:330px;display:flex;flex-direction:column;gap:12px">
+        <div class="box" style="flex:1">
+          <div class="lbl">WHAT JUST HAPPENED</div>
+          <div class="flow"><span class="num done">1</span><span class="ft">You approved <b style="color:#F5F5FA">sim/app#3</b> as dev-two.</span></div>
+          <div class="flow"><span class="num done">2</span><span class="ft">Pylon's "Simulated GitHub" stream checked 6 seconds later and found the new review.</span></div>
+          <div class="flow"><span class="num done">3</span><span class="ft">It reported <b style="color:#F5F5FA">sim/app#3 approved by dev-two</b>.</span></div>
+          <div class="flow"><span class="num done">4</span><span class="ft">You and Perch heard it.</span></div>
+          <div style="display:flex;gap:8px;padding-top:4px"><a class="btn" href="J2-Activity.dc.html">See it in Activity</a><a class="btn" href="J3-WhyNot.dc.html">PR story</a></div>
+        </div>
+        <p class="m" style="margin:0;line-height:1.5">Only in dev builds. Nothing here touches real GitHub or needs Postern.</p>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

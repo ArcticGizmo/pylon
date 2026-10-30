@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Activity</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nav{width:200px;flex:none;background:#1F1F2A;border-right:1px solid #2D2D3C;display:flex;flex-direction:column;padding:20px 8px 12px;box-sizing:border-box;gap:2px}
+.brand{padding:0 10px 18px;display:flex;flex-direction:column;gap:4px}
+.ni{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:14px;color:#E1E1EB;text-decoration:none}
+.ni:hover{background:#2D2D3C}
+.on{background:rgba(96,165,250,.15);color:#F5F5FA}
+.count{background:#60A5FA;color:#0B1220;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:600}
+.btn{background:#2D2D3C;color:#E1E1EB;border:0;border-radius:6px;padding:8px 14px;font:inherit;font-size:13px;text-decoration:none;display:inline-block}
+.primary{background:#60A5FA;color:#0B1220;font-weight:600}
+.lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0}
+.chip{background:#1F1F2A;border:1px solid #2D2D3C;color:#E1E1EB;border-radius:14px;padding:5px 11px;font:inherit;font-size:12.5px}
+.chipon{background:rgba(96,165,250,.15);border-color:#60A5FA;color:#F5F5FA}
+.row{display:flex;gap:11px;align-items:center;padding:10px 12px;border-radius:8px}
+.sel{background:#1F1F2A;outline:1px solid #2D2D3C}
+.ic{width:30px;height:30px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center}
+.t{font-size:13.5px;color:#F5F5FA;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m{font-size:12px;color:#8C8CA0}
+.pip{width:8px;height:8px;border-radius:4px;flex:none}
+.kv{display:flex;gap:10px;font-size:13px;padding:4px 0}
+</style>
+</helmet>
+<div style="width:1100px;height:720px;display:flex;background:#181820;color:#E1E1EB;font-family:Inter,system-ui,sans-serif">
+  <nav class="nav" aria-label="Pylon">
+    <div class="brand"><span style="font-size:22px;color:#F5F5FA;font-weight:600">Pylon</span><span style="font-size:11px;color:#8C8CA0">changes, not polling</span></div>
+    <a class="ni on" href="J2-Activity.dc.html">Activity <span class="count">4 new</span></a>
+    <a class="ni" href="J5-Streams.dc.html">Streams</a>
+    <a class="ni" href="J4-Listeners.dc.html">Listeners</a>
+    <a class="ni" href="#">Settings</a>
+    <div style="flex:1"></div>
+    <a class="ni" href="J2-Widget.dc.html" style="font-size:13px;color:#8C8CA0">Float the widget</a>
+  </nav>
+  <main style="flex:1;display:flex;min-width:0">
+    <section style="width:440px;flex:none;padding:28px 16px 16px 28px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;border-right:1px solid #2D2D3C">
+      <h1 style="margin:0;font-size:22px;font-weight:600;color:#F5F5FA">Activity</h1>
+      <label for="q" style="position:absolute;left:-9999px">Search activity</label>
+      <input id="q" type="search" placeholder="Search: repo, #number, person" style="background:#1F1F2A;border:1px solid #2D2D3C;border-radius:8px;padding:9px 12px;color:#E1E1EB;font:inherit;font-size:13px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="chip chipon" type="button">All</button>
+        <button class="chip" type="button">Needs me · 2</button>
+        <button class="chip" type="button">Work PRs</button>
+        <button class="chip" type="button">Reviews for me</button>
+        <button class="chip" type="button">Side projects</button>
+      </div>
+      <div class="lbl" style="padding:6px 0 0 4px">TODAY</div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div class="row sel"><span class="ic" style="background:rgba(96,165,250,.18);color:#60A5FA"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M6 8v12M18 16V9a3 3 0 0 0-3-3h-4"/></svg></span><span style="flex:1;min-width:0"><div class="t">org/api#412 approved by sam</div><div class="m">Work PRs · 2 min ago</div></span><span class="pip" style="background:#4ADE80"></span></div>
+        <div class="row"><span class="ic" style="background:rgba(251,191,36,.16);color:#FBBF24"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg></span><span style="flex:1;min-width:0"><div class="t">Your review is requested on org/web#88</div><div class="m">Reviews for me · 9 min ago</div></span><span class="pip" style="background:#FBBF24"></span></div>
+        <div class="row"><span class="ic" style="background:rgba(96,165,250,.18);color:#60A5FA"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M6 8v12M18 16V9a3 3 0 0 0-3-3h-4"/></svg></span><span style="flex:1;min-width:0"><div class="t">org/web#90 checks failing</div><div class="m">Work PRs · 24 min ago</div></span><span class="pip" style="background:#F87171"></span></div>
+        <div class="row"><span class="ic" style="background:rgba(96,165,250,.18);color:#60A5FA"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M6 8v12M18 16V9a3 3 0 0 0-3-3h-4"/></svg></span><span style="flex:1;min-width:0"><div class="t">org/api#415 opened by alex: Retry failed exports</div><div class="m">Work PRs · 1 h ago</div></span><span class="pip" style="background:#60A5FA"></span></div>
+      </div>
+      <div class="lbl" style="padding:6px 0 0 4px">YESTERDAY</div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div class="row"><span class="ic" style="background:rgba(167,139,250,.18);color:#A78BFA"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l3 6 6 1-4.5 4 1 6L12 17l-5.5 3 1-6L3 10l6-1z"/></svg></span><span style="flex:1;min-width:0"><div class="t">jon/tool#7 merged: Speed up config loading</div><div class="m">Side projects · 16:20</div></span><span class="pip" style="background:#A78BFA"></span></div>
+        <div class="row"><span class="ic" style="background:rgba(96,165,250,.18);color:#60A5FA"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M6 8v12M18 16V9a3 3 0 0 0-3-3h-4"/></svg></span><span style="flex:1;min-width:0"><div class="t">org/api#405 merged</div><div class="m">Work PRs · 11:03</div></span><span class="pip" style="background:#A78BFA"></span></div>
+      </div>
+    </section>
+
+    <section style="flex:1;padding:28px 28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;min-width:0">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;gap:8px;align-items:center"><span class="pip" style="background:#4ADE80"></span><span class="m">Approved · Work PRs · today 10:42</span></div>
+        <h2 style="margin:0;font-size:19px;font-weight:600;color:#F5F5FA">org/api#412 approved by sam</h2>
+        <p style="margin:0;font-size:13.5px;color:#8C8CA0">Add rate-limit headers to the export endpoint</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <a class="btn primary" href="#">Open on GitHub</a>
+        <a class="btn" href="J3-WhyNot.dc.html">This PR's story</a>
+      </div>
+      <div style="background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:4px">
+        <div class="lbl" style="margin-bottom:4px">WHO HEARD IT</div>
+        <div class="kv"><span style="color:#4ADE80" aria-hidden="true">●</span><span style="flex:1">You · widget and Activity</span><span class="m">10:42</span></div>
+        <div class="kv"><span style="color:#4ADE80" aria-hidden="true">●</span><span style="flex:1">Perch · refreshed org/api#412</span><span class="m">10:42</span></div>
+        <div class="kv"><span style="color:#8C8CA0" aria-hidden="true">○</span><span style="flex:1">Sprig · not running; gets it when it next connects</span><span class="m">waiting</span></div>
+      </div>
+      <div style="background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+        <div class="lbl">HOW PYLON KNEW</div>
+        <p style="margin:0;font-size:13px;line-height:1.55">Pylon checked org/api at 10:42 and found a new review from sam that approves. Nothing else on this pull request had changed.</p>
+        <a href="J5-Streams.dc.html" style="font-size:12.5px;color:#60A5FA;text-decoration:none">See the check in the stream's diagnostics</a>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="lbl">WHAT LISTENING APPS RECEIVED</div>
+        <pre style="margin:0;background:#1F1F2A;border:1px solid #2D2D3C;border-radius:8px;padding:10px 12px;font-family:'Cascadia Mono',Consolas,monospace;font-size:11.5px;color:#C9C9D6;white-space:pre-wrap">type   github.pr.approved
+topic  github/pr/org/api/412
+hint   reviewDecision = approved</pre>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

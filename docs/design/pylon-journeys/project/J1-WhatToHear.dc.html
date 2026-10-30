@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add a stream: what to hear about</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nav{width:200px;flex:none;background:#1F1F2A;border-right:1px solid #2D2D3C;display:flex;flex-direction:column;padding:20px 8px 12px;box-sizing:border-box;gap:2px}
+.brand{padding:0 10px 18px;display:flex;flex-direction:column;gap:4px}
+.ni{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:14px;color:#E1E1EB;text-decoration:none}
+.ni:hover{background:#2D2D3C}
+.on{background:rgba(96,165,250,.15);color:#F5F5FA}
+.btn{background:#2D2D3C;color:#E1E1EB;border:0;border-radius:6px;padding:9px 16px;font:inherit;font-size:13px;text-decoration:none;display:inline-block}
+.primary{background:#60A5FA;color:#0B1220;font-weight:600}
+.lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0}
+.step{display:flex;align-items:center;gap:8px;font-size:13px;color:#8C8CA0}
+.dot{width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;background:#2D2D3C;color:#E1E1EB}
+.opt{display:flex;gap:10px;align-items:center;font-size:13.5px;padding:5px 0}
+.sub{display:flex;gap:10px;align-items:center;font-size:12.5px;color:#8C8CA0;padding:0 0 4px 26px}
+.mut{color:#8C8CA0;font-size:12px}
+.ev{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #2D2D3C;font-size:13px}
+.ev:last-child{border-bottom:0}
+.pip{width:8px;height:8px;border-radius:4px;flex:none}
+.field{background:#181820;border:1px solid #2D2D3C;border-radius:8px;padding:9px 12px;color:#E1E1EB;font:inherit;font-size:13px}
+</style>
+</helmet>
+<div style="width:1100px;height:720px;display:flex;background:#181820;color:#E1E1EB;font-family:Inter,system-ui,sans-serif">
+  <nav class="nav" aria-label="Pylon">
+    <div class="brand"><span style="font-size:22px;color:#F5F5FA;font-weight:600">Pylon</span><span style="font-size:11px;color:#8C8CA0">changes, not polling</span></div>
+    <a class="ni" href="J1-Empty.dc.html">Activity</a>
+    <a class="ni on" href="J5-Streams.dc.html">Streams</a>
+    <a class="ni" href="J4-Listeners.dc.html">Listeners</a>
+    <a class="ni" href="#">Settings</a>
+  </nav>
+  <main style="flex:1;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1 style="margin:0;font-size:22px;font-weight:600;color:#F5F5FA">Add a stream</h1>
+      <div style="display:flex;gap:18px">
+        <div class="step"><span class="dot" style="background:#4ADE80;color:#0B1220">✓</span><span>What to watch</span></div>
+        <div class="step"><span class="dot" style="background:#60A5FA;color:#0B1220">2</span><span style="color:#F5F5FA">What to hear about</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:28px;flex:1;min-height:0">
+      <div style="width:360px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;flex-direction:column">
+          <div class="lbl" style="margin-bottom:6px">TELL ME WHEN</div>
+          <label class="opt"><input type="checkbox" checked>A pull request is opened</label>
+          <label class="opt"><input type="checkbox" checked>A draft is marked ready for review</label>
+          <label class="opt"><input type="checkbox" checked>Someone is asked to review</label>
+          <label class="sub"><input type="checkbox">Only when it's me</label>
+          <label class="opt"><input type="checkbox" checked>A review comments or asks for changes</label>
+          <label class="opt"><input type="checkbox" checked>A pull request is approved</label>
+          <label class="opt"><input type="checkbox" checked>Checks pass or fail</label>
+          <label class="sub"><input type="checkbox" checked>Only when they fail</label>
+          <label class="opt"><input type="checkbox" checked>It's merged</label>
+          <label class="opt"><input type="checkbox">It's closed without merging</label>
+        </div>
+        <div style="display:flex;flex-direction:column">
+          <div class="lbl" style="margin-bottom:6px">KEEP QUIET ABOUT</div>
+          <label class="opt"><input type="checkbox" checked>Bots (Dependabot, Renovate, Copilot…)</label>
+          <label class="opt"><input type="checkbox" checked>Drafts, until they're marked ready</label>
+        </div>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div style="display:flex;gap:12px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px"><label class="lbl" for="name">NAME</label><input id="name" class="field" value="Work PRs"></div>
+          <div style="display:flex;flex-direction:column;gap:6px"><span class="lbl">COLOUR</span>
+            <div style="display:flex;gap:6px;padding-top:4px">
+              <button type="button" aria-label="Blue" style="width:28px;height:28px;border-radius:6px;border:2px solid #F5F5FA;background:#60A5FA"></button>
+              <button type="button" aria-label="Purple" style="width:28px;height:28px;border-radius:6px;border:0;background:#A78BFA"></button>
+              <button type="button" aria-label="Green" style="width:28px;height:28px;border-radius:6px;border:0;background:#4ADE80"></button>
+              <button type="button" aria-label="Pink" style="width:28px;height:28px;border-radius:6px;border:0;background:#F472B6"></button>
+            </div>
+          </div>
+        </div>
+        <div style="background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;flex:1;min-height:0">
+          <div class="lbl">PREVIEW · THE LAST 7 DAYS</div>
+          <p style="margin:0 0 6px;font-size:13.5px;color:#F5F5FA">With these choices, this stream would have told you about <b>23 things</b> (about 3 a day). 61 more were kept quiet.</p>
+          <div class="ev"><span class="pip" style="background:#4ADE80"></span><span style="flex:1">org/api#412 approved by sam</span><span class="mut">Tue</span></div>
+          <div class="ev"><span class="pip" style="background:#FBBF24"></span><span style="flex:1">Review requested from you on org/web#88</span><span class="mut">Tue</span></div>
+          <div class="ev"><span class="pip" style="background:#F87171"></span><span style="flex:1">org/web#90 checks failing</span><span class="mut">Mon</span></div>
+          <div class="ev"><span class="pip" style="background:#A78BFA"></span><span style="flex:1">org/api#405 merged</span><span class="mut">Mon</span></div>
+          <div class="ev"><span class="pip" style="background:#60A5FA"></span><span style="flex:1">org/api#415 opened by alex</span><span class="mut">Fri</span></div>
+          <p class="mut" style="margin:6px 0 0">Untick "Only when they fail" and this becomes 40 things.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="mut">Pylon checks every minute. Change that later under the stream's settings.</span>
+      <div style="display:flex;gap:10px">
+        <a class="btn" href="J1-AddStream.dc.html">Back</a>
+        <a class="btn primary" href="J2-Activity.dc.html">Start watching</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

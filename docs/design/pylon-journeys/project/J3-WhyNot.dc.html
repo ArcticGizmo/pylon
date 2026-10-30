@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A pull request's story</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nav{width:200px;flex:none;background:#1F1F2A;border-right:1px solid #2D2D3C;display:flex;flex-direction:column;padding:20px 8px 12px;box-sizing:border-box;gap:2px}
+.brand{padding:0 10px 18px;display:flex;flex-direction:column;gap:4px}
+.ni{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:14px;color:#E1E1EB;text-decoration:none}
+.ni:hover{background:#2D2D3C}
+.on{background:rgba(96,165,250,.15);color:#F5F5FA}
+.btn{background:#2D2D3C;color:#E1E1EB;border:0;border-radius:6px;padding:6px 12px;font:inherit;font-size:12.5px;text-decoration:none;display:inline-block}
+.primary{background:#60A5FA;color:#0B1220;font-weight:600}
+.lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0}
+.m{font-size:12px;color:#8C8CA0}
+.item{display:flex;gap:14px}
+.when{width:86px;flex:none;font-size:12px;color:#8C8CA0;padding-top:3px;text-align:right}
+.rail{width:14px;flex:none;display:flex;flex-direction:column;align-items:center}
+.node{width:12px;height:12px;border-radius:6px;margin-top:4px;flex:none}
+.line{flex:1;width:2px;background:#2D2D3C;margin-top:4px}
+.body{flex:1;display:flex;flex-direction:column;gap:5px;padding-bottom:18px;min-width:0}
+.what{font-size:14px;color:#F5F5FA}
+.told{font-size:12.5px;color:#4ADE80}
+.quiet{font-size:12.5px;color:#FBBF24}
+</style>
+</helmet>
+<div style="width:1100px;height:720px;display:flex;background:#181820;color:#E1E1EB;font-family:Inter,system-ui,sans-serif">
+  <nav class="nav" aria-label="Pylon">
+    <div class="brand"><span style="font-size:22px;color:#F5F5FA;font-weight:600">Pylon</span><span style="font-size:11px;color:#8C8CA0">changes, not polling</span></div>
+    <a class="ni on" href="J2-Activity.dc.html">Activity</a>
+    <a class="ni" href="J5-Streams.dc.html">Streams</a>
+    <a class="ni" href="J4-Listeners.dc.html">Listeners</a>
+    <a class="ni" href="#">Settings</a>
+  </nav>
+  <main style="flex:1;padding:24px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px;min-width:0">
+    <div class="m"><a href="J2-Activity.dc.html" style="color:#60A5FA;text-decoration:none">Activity</a> › search "org/web#88"</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <h1 style="margin:0;font-size:22px;font-weight:600;color:#F5F5FA">org/web#88 · Dark mode for the settings page</h1>
+        <div class="m">Open · by priya · watched by Work PRs and Reviews for me</div>
+      </div>
+      <a class="btn" href="#" style="padding:8px 14px;font-size:13px">Open on GitHub</a>
+    </div>
+
+    <div style="background:rgba(96,165,250,.10);border:1px solid rgba(96,165,250,.45);border-radius:12px;padding:14px 18px;font-size:14px;color:#F5F5FA;line-height:1.5">
+      Pylon saw <b>5 changes</b> on this pull request. It told you about <b>2</b>. The other <b>3</b> were kept quiet by your stream settings; each says which one, with a way to change it.
+    </div>
+
+    <div style="display:flex;flex-direction:column;padding-top:4px">
+      <div class="item"><div class="when">Mon 09:12</div><div class="rail"><span class="node" style="background:#4ADE80"></span><span class="line"></span></div>
+        <div class="body"><div class="what">Opened by priya</div><div class="told">Told you · Work PRs</div></div></div>
+
+      <div class="item"><div class="when">Tue 10:03</div><div class="rail"><span class="node" style="background:#FBBF24"></span><span class="line"></span></div>
+        <div class="body"><div class="what">Review requested from team frontend</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="quiet">Kept quiet · in Work PRs, "Someone is asked to review" is off</span><a class="btn" href="#">Turn it on for Work PRs</a></div></div></div>
+
+      <div class="item"><div class="when">Tue 14:20</div><div class="rail"><span class="node" style="background:#FBBF24"></span><span class="line"></span></div>
+        <div class="body"><div class="what">Reviewed by copilot (a bot)</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="quiet">Kept quiet · Work PRs ignores bots</span><a class="btn" href="#">Stop ignoring bots</a></div></div></div>
+
+      <div class="item"><div class="when">Today 10:31</div><div class="rail"><span class="node" style="background:#FBBF24"></span><span class="line"></span></div>
+        <div class="body"><div class="what">Checks passed</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="quiet">Kept quiet · Work PRs only tells you when checks fail</span><a class="btn" href="#">Tell me when they pass too</a></div></div></div>
+
+      <div class="item"><div class="when">Today 10:33</div><div class="rail"><span class="node" style="background:#4ADE80"></span></div>
+        <div class="body"><div class="what">Your review was requested</div><div class="told">Told you · Reviews for me · Perch heard it too</div></div></div>
+    </div>
+
+    <p class="m" style="margin:0;line-height:1.5">Not here at all? Pylon only knows what GitHub showed when it checked. <a href="J5-Streams.dc.html" style="color:#60A5FA;text-decoration:none">Check the stream's health and diagnostics</a>.</p>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pylon: the idea</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.col{display:flex;flex-direction:column;gap:10px;width:236px}
+.head{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0}
+.box{background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.box b{color:#F5F5FA;font-weight:600;font-size:14px}
+.box span{color:#8C8CA0;font-size:12px}
+.soon{opacity:.6;border-style:dashed}
+.arrow{display:flex;align-items:center;padding-top:26px;color:#8C8CA0}
+.card{background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px;flex:1}
+.card .n{color:#60A5FA;font-weight:700;font-size:13px}
+.card b{color:#F5F5FA;font-size:15px;font-weight:600}
+.card span{color:#8C8CA0;font-size:12.5px;line-height:1.45}
+</style>
+</helmet>
+<div style="width:1280px;height:900px;box-sizing:border-box;padding:56px 64px;background:#181820;color:#E1E1EB;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;gap:36px">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="head">PYLON</div>
+    <h1 style="margin:0;font-size:34px;font-weight:600;color:#F5F5FA;line-height:1.2">One place that hears about changes, so your apps (and you) don't have to keep asking.</h1>
+    <p style="margin:0;font-size:15px;color:#8C8CA0;max-width:900px;line-height:1.5">You tell Pylon what to watch. It turns what changes into events in one list. You see that list; apps on your machine listen to it.</p>
+  </div>
+
+  <div style="display:flex;gap:14px;align-items:flex-start">
+    <div class="col">
+      <div class="head">SOURCES · where changes happen</div>
+      <div class="box"><b>GitHub</b><span>pull requests, reviews, checks</span></div>
+      <div class="box soon"><b>Octopus Deploy</b><span>later</span></div>
+      <div class="box soon"><b>Microsoft Graph</b><span>later</span></div>
+      <div class="box"><b>Heartbeat</b><span>built in, for testing</span></div>
+    </div>
+    <div class="arrow"><svg width="40" height="20" viewBox="0 0 40 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 10h34M30 4l6 6-6 6"/></svg></div>
+    <div class="col">
+      <div class="head">STREAMS · what you watch</div>
+      <div class="box"><b>Work PRs</b><span>org/api, org/web · opened, reviews, merged</span></div>
+      <div class="box"><b>Reviews for me</b><span>any repo · review requested of me</span></div>
+      <div class="box"><b>Side projects</b><span>jon/tool · merged</span></div>
+    </div>
+    <div class="arrow"><svg width="40" height="20" viewBox="0 0 40 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 10h34M30 4l6 6-6 6"/></svg></div>
+    <div class="col">
+      <div class="head">EVENTS · one list</div>
+      <div class="box"><b>org/api#412 approved</b><span>Work PRs · 2 min ago</span></div>
+      <div class="box"><b>Review requested: org/web#88</b><span>Reviews for me · 9 min ago</span></div>
+      <div class="box"><b>jon/tool#7 merged</b><span>Side projects · 1 h ago</span></div>
+    </div>
+    <div class="arrow"><svg width="40" height="20" viewBox="0 0 40 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 10h34M30 4l6 6-6 6"/></svg></div>
+    <div class="col">
+      <div class="head">LISTENERS · who hears</div>
+      <div class="box"><b>You</b><span>the Activity tab and the floating widget</span></div>
+      <div class="box"><b>Perch</b><span>refreshes the PRs it shows</span></div>
+      <div class="box"><b>Sprig, scripts…</b><span>any app you allow, over the pipe</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="head">FIVE JOURNEYS ON THIS CANVAS</div>
+    <div style="display:flex;gap:14px">
+      <div class="card"><div class="n">1</div><b>Set up a stream</b><span>Pick a source, pick repos, pick what matters. No typing owner/repo by hand.</span></div>
+      <div class="card"><div class="n">2</div><b>What's happening?</b><span>Activity is the home tab. The widget is a small Activity you can float.</span></div>
+      <div class="card"><div class="n">3</div><b>Why didn't I hear?</b><span>Look up the PR, see its story in plain words, fix the switch in one click.</span></div>
+      <div class="card"><div class="n">4</div><b>Let an app listen</b><span>An app asks, you allow it once, you can see and revoke it later.</span></div>
+      <div class="card"><div class="n">5</div><b>Behind the scenes</b><span>Stream health, diagnostics when you need them, and a built-in simulator.</span></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

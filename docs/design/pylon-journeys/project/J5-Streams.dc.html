@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Streams</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nav{width:200px;flex:none;background:#1F1F2A;border-right:1px solid #2D2D3C;display:flex;flex-direction:column;padding:20px 8px 12px;box-sizing:border-box;gap:2px}
+.brand{padding:0 10px 18px;display:flex;flex-direction:column;gap:4px}
+.ni{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:14px;color:#E1E1EB;text-decoration:none}
+.ni:hover{background:#2D2D3C}
+.on{background:rgba(96,165,250,.15);color:#F5F5FA}
+.btn{background:#2D2D3C;color:#E1E1EB;border:0;border-radius:6px;padding:7px 14px;font:inherit;font-size:12.5px;text-decoration:none;display:inline-block}
+.primary{background:#60A5FA;color:#0B1220;font-weight:600}
+.lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0}
+.m{font-size:12px;color:#8C8CA0}
+.s{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:8px}
+.ssel{background:rgba(96,165,250,.15)}
+.sw{width:10px;height:10px;border-radius:3px;flex:none}
+.tab{padding:7px 12px;border-radius:8px;font-size:13.5px;color:#8C8CA0;text-decoration:none}
+.tabon{background:rgba(96,165,250,.15);color:#F5F5FA}
+.box{background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.kv{display:flex;gap:12px;font-size:13px}
+.kv span:first-child{width:120px;color:#8C8CA0;flex:none}
+.chk{font-family:'Cascadia Mono',Consolas,monospace;font-size:11.5px;color:#C9C9D6;display:flex;gap:12px}
+</style>
+</helmet>
+<div style="width:1100px;height:720px;display:flex;background:#181820;color:#E1E1EB;font-family:Inter,system-ui,sans-serif">
+  <nav class="nav" aria-label="Pylon">
+    <div class="brand"><span style="font-size:22px;color:#F5F5FA;font-weight:600">Pylon</span><span style="font-size:11px;color:#8C8CA0">changes, not polling</span></div>
+    <a class="ni" href="J2-Activity.dc.html">Activity</a>
+    <a class="ni on" href="J5-Streams.dc.html">Streams</a>
+    <a class="ni" href="J4-Listeners.dc.html">Listeners</a>
+    <a class="ni" href="#">Settings</a>
+  </nav>
+  <main style="flex:1;display:flex;min-width:0">
+    <section style="width:280px;flex:none;padding:28px 12px 16px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;border-right:1px solid #2D2D3C">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h1 style="margin:0;font-size:22px;font-weight:600;color:#F5F5FA">Streams</h1><a class="btn primary" href="J1-AddStream.dc.html">Add</a></div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div class="s ssel"><span class="sw" style="background:#60A5FA"></span><span style="flex:1"><div style="font-size:14px;color:#F5F5FA">Work PRs</div><div class="m">14 today</div></span><span style="color:#4ADE80;font-size:12px">Healthy</span></div>
+        <div class="s"><span class="sw" style="background:#F472B6"></span><span style="flex:1"><div style="font-size:14px">Reviews for me</div><div class="m">needs you</div></span><span style="color:#FBBF24;font-size:12px">Waiting</span></div>
+        <div class="s"><span class="sw" style="background:#A78BFA"></span><span style="flex:1"><div style="font-size:14px">Side projects</div><div class="m">1 yesterday</div></span><span style="color:#4ADE80;font-size:12px">Healthy</span></div>
+        <div class="s"><span class="sw" style="background:#FBBF24"></span><span style="flex:1"><div style="font-size:14px">Simulated GitHub</div><div class="m">dev only</div></span><span style="color:#8C8CA0;font-size:12px">Paused</span></div>
+      </div>
+    </section>
+
+    <section style="flex:1;padding:28px 28px 16px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;min-width:0">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <h2 style="margin:0;font-size:19px;font-weight:600;color:#F5F5FA">Work PRs</h2>
+          <span class="m">GitHub · Work account · org/api, org/web</span>
+        </div>
+        <div style="display:flex;gap:8px"><button class="btn" type="button">Check now</button><button class="btn" type="button">Pause</button><a class="btn" href="J1-WhatToHear.dc.html">Edit</a></div>
+      </div>
+      <div style="display:flex;gap:4px">
+        <a class="tab tabon" href="#">Overview</a>
+        <a class="tab" href="#">Diagnostics</a>
+      </div>
+
+      <div class="box" style="flex-direction:row;align-items:center;gap:14px">
+        <span style="width:12px;height:12px;border-radius:6px;background:#4ADE80;flex:none"></span>
+        <div style="flex:1;font-size:14px;color:#F5F5FA">Healthy. Checked 20 seconds ago; next check in 40 seconds.</div>
+        <span class="m">uses ~40 of 5,000 GitHub requests an hour</span>
+      </div>
+
+      <div style="display:flex;gap:14px">
+        <div class="box" style="flex:1">
+          <div class="lbl">TODAY</div>
+          <div class="kv"><span>Told you about</span><span>14 things</span></div>
+          <div class="kv"><span>Kept quiet</span><span>6 (bots 4, checks passing 2)</span></div>
+          <div class="kv"><span>Heard by</span><span>you, Perch</span></div>
+        </div>
+        <div class="box" style="flex:1">
+          <div class="lbl">TELLS YOU WHEN</div>
+          <div style="font-size:13px;line-height:1.6">A PR is opened, ready, approved, reviewed or merged · checks fail · not bots or drafts</div>
+        </div>
+      </div>
+
+      <div class="box">
+        <div style="display:flex;justify-content:space-between;align-items:center"><div class="lbl">DIAGNOSTICS · LATEST CHECKS</div><a href="#" style="font-size:12.5px;color:#60A5FA;text-decoration:none">Open diagnostics</a></div>
+        <div class="chk"><span>10:42:13</span><span style="flex:1">3 requests · 2 unchanged · found 1 change</span><span>→ 1 event</span></div>
+        <div class="chk"><span>10:41:12</span><span style="flex:1">3 requests · 3 unchanged</span><span style="color:#8C8CA0">nothing</span></div>
+        <div class="chk"><span>10:40:11</span><span style="flex:1">3 requests · 3 unchanged</span><span style="color:#8C8CA0">nothing</span></div>
+        <span class="m">Every request, rate-limit use and assumption check lives here, for when something seems wrong.</span>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

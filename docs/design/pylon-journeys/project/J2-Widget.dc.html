@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The floating widget</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.ib{width:28px;height:28px;border:0;border-radius:6px;background:transparent;color:#8C8CA0;display:flex;align-items:center;justify-content:center}
+.row{display:flex;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid #2D2D3C}
+.t{font-size:13px;color:#F5F5FA;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m{font-size:11.5px;color:#8C8CA0}
+.pip{width:8px;height:8px;border-radius:4px;flex:none}
+.bar{width:3px;align-self:stretch;border-radius:2px;flex:none}
+.chip{background:#1F1F2A;border:1px solid #2D2D3C;color:#E1E1EB;border-radius:14px;padding:4px 10px;font:inherit;font-size:12px}
+.chipon{background:rgba(96,165,250,.15);border-color:#60A5FA;color:#F5F5FA}
+</style>
+</helmet>
+<div style="width:380px;height:600px;box-sizing:border-box;padding:20px;background:#0F0F14;font-family:Inter,system-ui,sans-serif">
+  <div style="height:100%;display:flex;flex-direction:column;background:#181820;border:1px solid #2D2D3C;border-radius:12px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 6px 6px 12px;background:#1F1F2A">
+      <span style="flex:1;font-size:13px;font-weight:600;color:#F5F5FA">Pylon</span>
+      <button class="ib" type="button" aria-label="Pause"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button>
+      <a class="ib" href="J2-Activity.dc.html" aria-label="Open Activity in the main window"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v6H4V6h6"/></svg></a>
+      <button class="ib" type="button" aria-label="Hide"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div style="display:flex;gap:6px;padding:10px 12px 8px">
+      <button class="chip chipon" type="button">All</button>
+      <button class="chip" type="button">Needs me · 2</button>
+    </div>
+    <div style="flex:1;overflow:hidden">
+      <div class="row"><span class="bar" style="background:#60A5FA"></span><span style="flex:1;min-width:0"><div class="t">org/api#412 approved by sam</div><div class="m">Work PRs · 2 min</div></span><span class="pip" style="background:#4ADE80"></span></div>
+      <div class="row" style="background:rgba(251,191,36,.06)"><span class="bar" style="background:#F472B6"></span><span style="flex:1;min-width:0"><div class="t">Your review: org/web#88</div><div class="m">Reviews for me · 9 min</div></span><span class="pip" style="background:#FBBF24"></span></div>
+      <div class="row"><span class="bar" style="background:#60A5FA"></span><span style="flex:1;min-width:0"><div class="t">org/web#90 checks failing</div><div class="m">Work PRs · 24 min</div></span><span class="pip" style="background:#F87171"></span></div>
+      <div class="row"><span class="bar" style="background:#60A5FA"></span><span style="flex:1;min-width:0"><div class="t">org/api#415 opened by alex</div><div class="m">Work PRs · 1 h</div></span><span class="pip" style="background:#60A5FA"></span></div>
+      <div class="row"><span class="bar" style="background:#A78BFA"></span><span style="flex:1;min-width:0"><div class="t">jon/tool#7 merged</div><div class="m">Side projects · yesterday</div></span><span class="pip" style="background:#A78BFA"></span></div>
+      <div class="row"><span class="bar" style="background:#60A5FA"></span><span style="flex:1;min-width:0"><div class="t">org/api#405 merged</div><div class="m">Work PRs · yesterday</div></span><span class="pip" style="background:#A78BFA"></span></div>
+    </div>
+    <a href="J2-Activity.dc.html" style="padding:10px 12px;font-size:12.5px;color:#60A5FA;text-decoration:none;border-top:1px solid #2D2D3C">Open Activity</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":380,"height":600}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

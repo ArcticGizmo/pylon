@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>An app asks to listen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.btn{background:#2D2D3C;color:#E1E1EB;border:0;border-radius:6px;padding:9px 18px;font:inherit;font-size:13px;text-decoration:none;display:inline-block}
+.primary{background:#60A5FA;color:#0B1220;font-weight:600}
+.lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0}
+.m{font-size:12px;color:#8C8CA0}
+.li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:#E1E1EB;padding:3px 0}
+</style>
+</helmet>
+<div style="width:560px;height:460px;box-sizing:border-box;padding:24px;background:#0F0F14;font-family:Inter,system-ui,sans-serif">
+  <div role="dialog" aria-labelledby="ask-title" style="height:100%;box-sizing:border-box;background:#181820;border:1px solid #2D2D3C;border-radius:12px;padding:24px 26px;display:flex;flex-direction:column;gap:16px;box-shadow:0 12px 40px rgba(0,0,0,.5);color:#E1E1EB">
+    <div style="display:flex;gap:14px;align-items:center">
+      <div style="width:44px;height:44px;border-radius:10px;background:rgba(167,139,250,.18);color:#A78BFA;display:flex;align-items:center;justify-content:center;flex:none">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 18c4-1 6-4 7-9 3 0 6 2 7 5-3 0-5 1-6 4"/><circle cx="12" cy="7" r="1"/></svg>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <h2 id="ask-title" style="margin:0;font-size:18px;font-weight:600;color:#F5F5FA">Perch wants to listen to Pylon</h2>
+        <span class="m">C:\Program Files\Perch\Perch.exe · running as you</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div class="lbl">IT ASKS TO HEAR ABOUT</div>
+      <div class="li"><span style="color:#60A5FA" aria-hidden="true">●</span><span>Pull requests in any org/… repository</span></div>
+      <div class="li"><span style="color:#60A5FA" aria-hidden="true">●</span><span>Pull requests in jon/… repositories</span></div>
+    </div>
+    <p style="margin:0;font-size:13px;line-height:1.55;color:#C9C9D6">Perch will get short hints like "org/api#412 changed: approved". It never gets your tokens or the pull request's content; it fetches what it needs itself, through Postern.</p>
+    <label style="display:flex;gap:10px;align-items:center;font-size:13px"><input type="checkbox" checked>Remember this; don't ask again for these</label>
+    <div style="flex:1"></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <a class="btn" href="J4-Listeners.dc.html">Don't allow</a>
+      <a class="btn primary" href="J4-Listeners.dc.html">Allow</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":560,"height":460}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

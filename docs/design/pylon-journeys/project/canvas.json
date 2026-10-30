@@ -1,0 +1,46 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-30T05:10:00Z" },
+  "title": "Pylon user journeys",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 900, "title": "The idea" },
+    "J1-Empty.dc.html": { "x": 0, "y": 1300, "w": 1100, "h": 720, "title": "1a · First run", "is_interactive": true },
+    "J1-AddStream.dc.html": { "x": 1180, "y": 1300, "w": 1100, "h": 720, "title": "1b · What to watch", "is_interactive": true },
+    "J1-WhatToHear.dc.html": { "x": 2360, "y": 1300, "w": 1100, "h": 720, "title": "1c · What to hear about", "is_interactive": true },
+    "J2-Activity.dc.html": { "x": 0, "y": 2400, "w": 1100, "h": 720, "title": "2a · Activity (home)", "is_interactive": true },
+    "J2-Widget.dc.html": { "x": 1180, "y": 2400, "w": 380, "h": 600, "title": "2b · The widget", "is_interactive": true },
+    "J3-WhyNot.dc.html": { "x": 0, "y": 3500, "w": 1100, "h": 720, "title": "3 · Why didn't I hear?", "is_interactive": true },
+    "J4-Ask.dc.html": { "x": 0, "y": 4600, "w": 560, "h": 460, "title": "4a · An app asks", "is_interactive": true },
+    "J4-Listeners.dc.html": { "x": 640, "y": 4600, "w": 1100, "h": 720, "title": "4b · Listeners", "is_interactive": true },
+    "J5-Streams.dc.html": { "x": 0, "y": 5700, "w": 1100, "h": 720, "title": "5a · Streams", "is_interactive": true },
+    "J5-Simulator.dc.html": { "x": 1180, "y": 5700, "w": 1100, "h": 720, "title": "5b · Simulator (dev)", "is_interactive": true }
+  },
+  "order": [
+    "Main.dc.html",
+    "J1-Empty.dc.html",
+    "J1-AddStream.dc.html",
+    "J1-WhatToHear.dc.html",
+    "J2-Activity.dc.html",
+    "J2-Widget.dc.html",
+    "J3-WhyNot.dc.html",
+    "J4-Ask.dc.html",
+    "J4-Listeners.dc.html",
+    "J5-Streams.dc.html",
+    "J5-Simulator.dc.html"
+  ],
+  "notes": {
+    "t1": { "x": 0, "y": 1040, "text": "Journey 1 · Set up a stream (first run)", "kind": "title1", "maxW": 3460 },
+    "t2": { "x": 0, "y": 2140, "text": "Journey 2 · What's happening?", "kind": "title1", "maxW": 1560 },
+    "t3": { "x": 0, "y": 3240, "text": "Journey 3 · Why didn't I hear about it?", "kind": "title1", "maxW": 1100 },
+    "t4": { "x": 0, "y": 4340, "text": "Journey 4 · Let an app listen", "kind": "title1", "maxW": 1740 },
+    "t5": { "x": 0, "y": 5440, "text": "Behind the scenes · streams and testing", "kind": "title1", "maxW": 2280 },
+    "q1": { "x": 1360, "y": 0, "w": 380, "fill": "orange", "text": "Naming to agree:\n• Monitor → Stream (what you watch)\n• Source → the kind (GitHub, Octopus…)\n• Subscriber → Listener\n• Test bench → Simulator\n\nDoes this read right to you?" },
+    "q2": { "x": 1640, "y": 2400, "w": 360, "fill": "blue", "text": "Activity is the home tab: the same list the widget shows, with room for detail. The widget becomes a mini Activity, not the only way in." },
+    "q3": { "x": 1180, "y": 3500, "w": 380, "fill": "blue", "text": "The answer to \"why\" is per pull request, in plain words, with a fix button. Poll traces move to Diagnostics on a stream, for when you really need them." },
+    "q4": { "x": 1820, "y": 4600, "w": 360, "fill": "orange", "text": "Same pattern as Postern: an app asks, you approve once, you can revoke. Should approval be needed for read-only hints at all?" },
+    "q5": { "x": 2360, "y": 5700, "w": 380, "fill": "orange", "text": "Move the test bench into Pylon as a Simulator (dev builds only)? One app instead of two, and simulated repos behave like any other stream." }
+  },
+  "designSystems": []
+}

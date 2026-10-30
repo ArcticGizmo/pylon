@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>First run</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nav{width:200px;flex:none;background:#1F1F2A;border-right:1px solid #2D2D3C;display:flex;flex-direction:column;padding:20px 8px 12px;box-sizing:border-box;gap:2px}
+.brand{padding:0 10px 18px;display:flex;flex-direction:column;gap:4px}
+.ni{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:14px;color:#E1E1EB;text-decoration:none}
+.ni:hover{background:#2D2D3C}
+.on{background:rgba(96,165,250,.15);color:#F5F5FA}
+.btn{background:#2D2D3C;color:#E1E1EB;border:0;border-radius:6px;padding:9px 16px;font:inherit;font-size:13px;text-decoration:none;display:inline-block}
+.primary{background:#60A5FA;color:#0B1220;font-weight:600}
+.check{display:flex;gap:10px;align-items:center;font-size:13px}
+</style>
+</helmet>
+<div style="width:1100px;height:720px;display:flex;background:#181820;color:#E1E1EB;font-family:Inter,system-ui,sans-serif">
+  <nav class="nav" aria-label="Pylon">
+    <div class="brand"><span style="font-size:22px;color:#F5F5FA;font-weight:600">Pylon</span><span style="font-size:11px;color:#8C8CA0">changes, not polling</span></div>
+    <a class="ni on" href="J1-Empty.dc.html">Activity</a>
+    <a class="ni" href="J5-Streams.dc.html">Streams</a>
+    <a class="ni" href="J4-Listeners.dc.html">Listeners</a>
+    <a class="ni" href="#">Settings</a>
+  </nav>
+  <main style="flex:1;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px;min-width:0">
+    <h1 style="margin:0;font-size:22px;font-weight:600;color:#F5F5FA">Activity</h1>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center">
+      <div style="width:520px;display:flex;flex-direction:column;gap:22px;align-items:center;text-align:center">
+        <div style="width:64px;height:64px;border-radius:16px;background:rgba(96,165,250,.15);display:flex;align-items:center;justify-content:center;color:#60A5FA">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M5 8l7-5 7 5M7 13h10M9 18h6"/></svg>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h2 style="margin:0;font-size:20px;font-weight:600;color:#F5F5FA">Pylon isn't watching anything yet</h2>
+          <p style="margin:0;font-size:14px;color:#8C8CA0;line-height:1.55">Add a stream to tell Pylon what to watch. Everything it hears about shows up here, in the floating widget, and in any app you let listen.</p>
+        </div>
+        <div style="display:flex;gap:10px">
+          <a class="btn primary" href="J1-AddStream.dc.html">Add a stream</a>
+          <a class="btn" href="J5-Simulator.dc.html">Try it with simulated GitHub</a>
+        </div>
+        <div style="width:100%;background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;padding:16px 20px;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;text-align:left">
+          <div style="font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0">GETTING READY</div>
+          <div class="check"><span style="color:#4ADE80" aria-hidden="true">●</span><span>Postern is running · 2 GitHub accounts you can use</span></div>
+          <div class="check"><span style="color:#8C8CA0" aria-hidden="true">○</span><span>No streams yet</span></div>
+          <div class="check"><span style="color:#8C8CA0" aria-hidden="true">○</span><span>No apps listening yet</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

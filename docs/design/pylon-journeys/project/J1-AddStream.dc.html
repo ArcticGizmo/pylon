@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add a stream: what to watch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nav{width:200px;flex:none;background:#1F1F2A;border-right:1px solid #2D2D3C;display:flex;flex-direction:column;padding:20px 8px 12px;box-sizing:border-box;gap:2px}
+.brand{padding:0 10px 18px;display:flex;flex-direction:column;gap:4px}
+.ni{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;font-size:14px;color:#E1E1EB;text-decoration:none}
+.ni:hover{background:#2D2D3C}
+.on{background:rgba(96,165,250,.15);color:#F5F5FA}
+.btn{background:#2D2D3C;color:#E1E1EB;border:0;border-radius:6px;padding:9px 16px;font:inherit;font-size:13px;text-decoration:none;display:inline-block}
+.primary{background:#60A5FA;color:#0B1220;font-weight:600}
+.lbl{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#8C8CA0}
+.step{display:flex;align-items:center;gap:8px;font-size:13px;color:#8C8CA0}
+.dot{width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;background:#2D2D3C;color:#E1E1EB}
+.src{flex:1;border:1px solid #2D2D3C;background:#1F1F2A;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;font:inherit;text-align:left;color:#E1E1EB}
+.sel{border-color:#60A5FA;background:rgba(96,165,250,.10)}
+.opt{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;padding:6px 0}
+.repo{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid #2D2D3C;font-size:13px}
+.repo:last-child{border-bottom:0}
+.mut{color:#8C8CA0;font-size:12px}
+</style>
+</helmet>
+<div style="width:1100px;height:720px;display:flex;background:#181820;color:#E1E1EB;font-family:Inter,system-ui,sans-serif">
+  <nav class="nav" aria-label="Pylon">
+    <div class="brand"><span style="font-size:22px;color:#F5F5FA;font-weight:600">Pylon</span><span style="font-size:11px;color:#8C8CA0">changes, not polling</span></div>
+    <a class="ni" href="J1-Empty.dc.html">Activity</a>
+    <a class="ni on" href="J5-Streams.dc.html">Streams</a>
+    <a class="ni" href="J4-Listeners.dc.html">Listeners</a>
+    <a class="ni" href="#">Settings</a>
+  </nav>
+  <main style="flex:1;padding:28px 32px;box-sizing:border-box;display:flex;flex-direction:column;gap:18px;min-width:0">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1 style="margin:0;font-size:22px;font-weight:600;color:#F5F5FA">Add a stream</h1>
+      <div style="display:flex;gap:18px">
+        <div class="step"><span class="dot" style="background:#60A5FA;color:#0B1220">1</span><span style="color:#F5F5FA">What to watch</span></div>
+        <div class="step"><span class="dot">2</span><span>What to hear about</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:28px;flex:1;min-height:0">
+      <div style="width:330px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="lbl">SOURCE</div>
+          <div style="display:flex;gap:8px">
+            <button class="src sel" type="button"><b style="color:#F5F5FA">GitHub</b><span class="mut">pull requests</span></button>
+            <button class="src" type="button"><b>Heartbeat</b><span class="mut">for testing</span></button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="lbl">ACCOUNT (FROM POSTERN)</div>
+          <label class="opt"><input type="radio" name="acct" checked><span>Work · jon-h<br><span class="mut">Postern connection "github-work"</span></span></label>
+          <label class="opt"><input type="radio" name="acct"><span>Personal · jonhowell<br><span class="mut">Postern connection "github"</span></span></label>
+          <a href="#" style="font-size:12.5px;color:#60A5FA;text-decoration:none">Add another account in Postern…</a>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div class="lbl">WATCH</div>
+          <label class="opt"><input type="radio" name="what" checked><span>Pull requests in repositories I pick</span></label>
+          <label class="opt"><input type="radio" name="what"><span>Pull requests waiting for my review<br><span class="mut">across every repository I can see</span></span></label>
+          <label class="opt"><input type="radio" name="what"><span>Pull requests I opened</span></label>
+        </div>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+        <div class="lbl">REPOSITORIES · 2 PICKED</div>
+        <label for="search" style="position:absolute;left:-9999px">Search repositories</label>
+        <input id="search" type="search" placeholder="Search your repositories" style="background:#1F1F2A;border:1px solid #2D2D3C;border-radius:8px;padding:10px 12px;color:#E1E1EB;font:inherit;font-size:13px">
+        <div style="background:#1F1F2A;border:1px solid #2D2D3C;border-radius:12px;overflow:hidden">
+          <label class="repo"><input type="checkbox" checked><span style="flex:1"><b style="color:#F5F5FA;font-weight:500">org/api</b></span><span class="mut">12 open PRs · updated 3 min ago</span></label>
+          <label class="repo"><input type="checkbox" checked><span style="flex:1"><b style="color:#F5F5FA;font-weight:500">org/web</b></span><span class="mut">5 open PRs · updated 1 h ago</span></label>
+          <label class="repo"><input type="checkbox"><span style="flex:1">org/perch</span><span class="mut">2 open PRs · updated yesterday</span></label>
+          <label class="repo"><input type="checkbox"><span style="flex:1">org/postern</span><span class="mut">0 open PRs · updated last week</span></label>
+          <label class="repo"><input type="checkbox"><span style="flex:1">org/infra</span><span class="mut">1 open PR · updated 3 days ago</span></label>
+          <label class="repo"><input type="checkbox"><span style="flex:1">org/docs</span><span class="mut">0 open PRs · updated last month</span></label>
+        </div>
+        <p class="mut" style="margin:0;line-height:1.5">Listed from GitHub through Postern, most recently active first. New repositories under an owner you've already allowed don't need another approval.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <a class="btn" href="J1-Empty.dc.html">Cancel</a>
+      <a class="btn primary" href="J1-WhatToHear.dc.html">Next: what to hear about</a>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1100,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
